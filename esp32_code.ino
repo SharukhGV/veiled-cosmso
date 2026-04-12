@@ -31,6 +31,7 @@ float raScale = DEFAULT_RA_SCALE;
 float raOffset = 0.0;
 float decScale = DEFAULT_DEC_SCALE;
 float decOffset = 0.0;
+bool tracking = false;
 
 void setup() {
   Serial.begin(115200);
@@ -64,6 +65,7 @@ void setup() {
 
       stepperRA.moveTo(targetRASteps);
       stepperDec.moveTo(targetDecSteps);
+      tracking = false; // Disable tracking during slew
 
       request->send(200, "application/json", "{\"status\":\"moving\"}");
   });
@@ -117,12 +119,34 @@ void setup() {
       request->send(200, "application/json", "{\"status\":\"home_set\"}");
   });
 
+  // Handle tracking toggle
+  server.on("/track", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL,
+    [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+      StaticJsonDocument<200> doc;
+      DeserializationError error = deserializeJson(doc, (const char*)data);
+      if (error) {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+      }
+      tracking = doc["on"];
+      if (tracking) {
+        // Sidereal rate: 15 arcsec/sec = 0.004167 deg/sec
+        float siderealDegPerSec = 0.004167;
+        float stepsPerSec = (raScale / 24.0) * siderealDegPerSec; // raScale is steps per hour, so steps per hour / 3600 for per sec
+        // Wait, raScale is steps per hour (since LHA in hours)
+        // Sidereal is 15"/sec = 15/3600 deg/sec = 0.004167 deg/sec
+        // So steps/sec = raScale * 0.004167
+        stepperRA.setSpeed(raScale * siderealDegPerSec);
+      }
+      request->send(200, "application/json", "{\"status\":\"tracking_" + String(tracking ? "on" : "off") + "\"}");
+  });
+
   // Handle Status Request
   server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
     bool moving = stepperRA.isRunning() || stepperDec.isRunning();
     long raSteps = stepperRA.currentPosition();
     long decSteps = stepperDec.currentPosition();
-    String json = "{\"moving\":" + String(moving ? "true" : "false") + ",\"ra_steps\":" + String(raSteps) + ",\"dec_steps\":" + String(decSteps) + "}";
+    String json = "{\"moving\":" + String(moving ? "true" : "false") + ",\"ra_steps\":" + String(raSteps) + ",\"dec_steps\":" + String(decSteps) + ",\"tracking\":" + String(tracking ? "true" : "false") + "}";
     request->send(200, "application/json", json);
   });
 
@@ -142,6 +166,10 @@ void setup() {
 
 void loop() {
   // AccelStepper needs to be called constantly to step the motors
-  stepperRA.run();
+  if (tracking) {
+    stepperRA.runSpeed();
+  } else {
+    stepperRA.run();
+  }
   stepperDec.run();
 }

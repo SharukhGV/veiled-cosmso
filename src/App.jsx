@@ -69,6 +69,7 @@ const KIDS_PICKS = [
 export default function TelescopeApp() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('READY');
+  // eslint-disable-next-line no-unused-vars
   const [location, setLocation] = useState({ lat: 40.71, lon: -73.93 });
   const [nightMode, setNightMode] = useState(false);
   const [kidsMode, setKidsMode] = useState(false); // New State
@@ -81,6 +82,7 @@ export default function TelescopeApp() {
   const [starRef2, setStarRef2] = useState(null);
   const [calibrationData, setCalibrationData] = useState(null);
   const [calibrationMessage, setCalibrationMessage] = useState('');
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem('veiledCosmosSeenIntro')) {
@@ -99,7 +101,11 @@ export default function TelescopeApp() {
         .then(response => response.json())
         .then(data => {
           setIsSlewing(data.moving);
-          setStatus(data.moving ? 'SLEWING...' : 'READY');
+          setTracking(data.tracking);
+          let newStatus = 'READY';
+          if (data.moving) newStatus = 'SLEWING...';
+          else if (data.tracking) newStatus = 'TRACKING';
+          setStatus(newStatus);
         })
         .catch(() => {
           setStatus('CONNECTION ERROR');
@@ -152,7 +158,7 @@ export default function TelescopeApp() {
       if (!response.ok) {
         throw new Error('Calibration upload failed');
       }
-    } catch (error) {
+    } catch {
       setCalibrationMessage('Unable to send calibration to mount.');
     }
   };
@@ -203,7 +209,7 @@ export default function TelescopeApp() {
       } else {
         setCalibrationMessage('Calibration failed. Try a different star pair.');
       }
-    } catch (error) {
+    } catch {
       setCalibrationMessage('Unable to read mount position. Check connection.');
     }
   };
@@ -240,7 +246,7 @@ export default function TelescopeApp() {
       } else {
         setCalibrationMessage('Failed to set home reference on mount.');
       }
-    } catch (error) {
+    } catch {
       setCalibrationMessage('Unable to set home. Check connection.');
     }
   };
@@ -257,8 +263,26 @@ export default function TelescopeApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reset: true })
       });
-    } catch (error) {
+    } catch {
       setCalibrationMessage('Unable to reset mount calibration.');
+    }
+  };
+
+  const toggleTracking = async () => {
+    const newTracking = !tracking;
+    try {
+      const response = await fetch('http://192.168.4.1/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ on: newTracking })
+      });
+      if (response.ok) {
+        setTracking(newTracking);
+      } else {
+        setStatus('TRACKING ERROR');
+      }
+    } catch {
+      setStatus('CONNECTION ERROR');
     }
   };
 
@@ -290,8 +314,6 @@ export default function TelescopeApp() {
     let ra, dec;
     if (obj.id) {
       // Planet
-      const observer = new Observer(location.lat, location.lon, 0);
-      const time = new Date();
       const eq = Equator(obj.id, time, observer, true, true);
       ra = eq.ra;
       dec = eq.dec;
@@ -314,6 +336,7 @@ export default function TelescopeApp() {
     .then(response => {
       if (response.ok) {
         setStatus('SLEWING...');
+        setTracking(false);
       } else {
         setStatus('SLEW ERROR');
       }
@@ -334,7 +357,10 @@ export default function TelescopeApp() {
           <h1 style={{...ui.title, color: theme.accent}}>🔭 VEILED COSMOS</h1>
           <p style={ui.subtitle}>Control Your Telescope to the Stars</p>
         </div>
-        <div style={{...ui.statusBox, background: isSlewing ? '#ffaa00' : theme.accent}}>
+        <div style={{
+          ...ui.statusBox, 
+          background: status === 'TRACKING' ? '#00aa00' : (isSlewing ? '#ffaa00' : theme.accent)
+        }}>
           <span style={ui.statusDot}></span>
           {status}
         </div>
@@ -363,6 +389,7 @@ export default function TelescopeApp() {
               <li><strong>Night Vision</strong>: toggles the darker, easier-to-read display.</li>
               <li><strong>Stop</strong>: halts motion immediately via the ESP32 stop command.</li>
               <li><strong>Home</strong>: returns the mount to the parking position.</li>
+              <li><strong>Tracking</strong>: enable sidereal tracking to follow celestial objects as Earth rotates.</li>
             </ul>
             <button style={ui.modalBtn} onClick={closeIntro}>Got it, continue</button>
           </div>
@@ -475,6 +502,14 @@ export default function TelescopeApp() {
           >
             <span style={ui.btnIcon}>🏠</span>
             HOME MOUNT
+          </button>
+
+          <button 
+            style={{...ui.actionBtn, background: tracking ? '#ffaa00' : '#333'}}
+            onClick={toggleTracking}
+          >
+            <span style={ui.btnIcon}>{tracking ? '⏸️' : '▶️'}</span>
+            {tracking ? 'DISABLE TRACKING' : 'ENABLE TRACKING'}
           </button>
 
           <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border}}>
@@ -804,17 +839,19 @@ const ui = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '20px',
+    padding: 'clamp(10px, 5vw, 20px)',
     zIndex: 999
   },
   modalBox: {
     width: '100%',
-    maxWidth: '520px',
+    maxWidth: 'min(520px, 90vw)',
     background: '#111',
     border: '1px solid rgba(255,255,255,0.12)',
     borderRadius: '20px',
-    padding: '28px',
-    boxShadow: '0 22px 60px rgba(0,0,0,0.45)'
+    padding: 'clamp(16px, 4vw, 28px)',
+    boxShadow: '0 22px 60px rgba(0,0,0,0.45)',
+    maxHeight: '80vh',
+    overflowY: 'auto'
   },
   modalTitle: {
     margin: 0,
