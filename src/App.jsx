@@ -72,6 +72,7 @@ export default function TelescopeApp() {
   const [nightMode, setNightMode] = useState(false);
   const [kidsMode, setKidsMode] = useState(false); // New State
   const [isSlewing, setIsSlewing] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   // ... (Keep your existing useEffect and sendCommand logic)
 
@@ -105,9 +106,10 @@ export default function TelescopeApp() {
           <span style={ui.statusDot}></span>
           {status}
         </div>
+        <button onClick={() => setSidebarVisible(!sidebarVisible)} style={{ background: 'none', border: 'none', color: theme.accent, fontSize: '1.5rem', cursor: 'pointer', padding: '8px', marginLeft: '8px' }}>☰</button>
       </div>
 
-      <div style={ui.mainGrid}>
+      <div style={{...ui.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
         <div style={ui.controls}>
           {!kidsMode && (
             <div style={ui.searchWrapper}>
@@ -154,7 +156,7 @@ export default function TelescopeApp() {
           </div>
         </div>
 
-        <div style={ui.sidebar}>
+        {sidebarVisible && <div style={ui.sidebar}>
           <div style={ui.buttonGroup}>
             <button 
               style={{...ui.actionBtn, background: kidsMode ? '#2196F3' : '#333'}}
@@ -193,7 +195,7 @@ export default function TelescopeApp() {
               <span style={{fontFamily: 'monospace'}}>{location.lat}°, {location.lon}°</span>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
