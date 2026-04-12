@@ -1,0 +1,22 @@
+export const BRIGHT_STARS = [
+  { name: 'Sirius', ra: 6.7525, dec: -16.7161 },
+  { name: 'Canopus', ra: 6.3992, dec: -52.6957 },
+  { name: 'Arcturus', ra: 14.2610, dec: 19.1824 },
+  { name: 'Vega', ra: 18.6156, dec: 38.7837 },
+  { name: 'Capella', ra: 5.2782, dec: 45.9979 },
+  { name: 'Rigel', ra: 5.2423, dec: -8.2016 },
+  { name: 'Betelgeuse', ra: 5.9195, dec: 7.4071 },
+  { name: 'Procyon', ra: 7.6550, dec: 5.2250 },
+  { name: 'Aldebaran', ra: 4.5987, dec: 16.5093 },
+  { name: 'Spica', ra: 13.4199, dec: -11.1613 },
+  { name: 'Antares', ra: 16.4901, dec: -26.4320 },
+  { name: 'Pollux', ra: 7.7553, dec: 28.0262 },
+  { name: 'Fomalhaut', ra: 22.9608, dec: -29.6222 },
+  { name: 'Deneb', ra: 20.6905, dec: 45.2803 },
+  { name: 'Regulus', ra: 10.1395, dec: 11.9672 },
+  { name: 'Altair', ra: 19.8464, dec: 8.8683 },
+  { name: 'Bellatrix', ra: 5.4189, dec: 6.3497 },
+  { name: 'Polaris', ra: 2.5303, dec: 89.2641 },
+  { name: 'Dubhe', ra: 11.0621, dec: 61.7508 },
+  { name: 'Merak', ra: 11.0307, dec: 56.3824 }
+];

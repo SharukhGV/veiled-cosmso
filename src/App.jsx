@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Observer, Body, Equator, SiderealTime } from 'astronomy-engine';
+import { BRIGHT_STARS } from './starCatalog';
 import mercuryImg from './assets/mercury.png';
 import venusImg from './assets/venus.png';
 import marsImg from './assets/mars.png';
@@ -67,14 +68,199 @@ const KIDS_PICKS = [
 
 export default function TelescopeApp() {
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('SYSTEM ONLINE');
+  const [status, setStatus] = useState('READY');
   const [location, setLocation] = useState({ lat: 40.71, lon: -73.93 });
   const [nightMode, setNightMode] = useState(false);
   const [kidsMode, setKidsMode] = useState(false); // New State
   const [isSlewing, setIsSlewing] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
+  const [showCalGuide, setShowCalGuide] = useState(false);
+  const [selectedCalStar, setSelectedCalStar] = useState(BRIGHT_STARS[0]?.name || '');
+  const [starRef1, setStarRef1] = useState(null);
+  const [starRef2, setStarRef2] = useState(null);
+  const [calibrationData, setCalibrationData] = useState(null);
+  const [calibrationMessage, setCalibrationMessage] = useState('');
 
-  // ... (Keep your existing useEffect and sendCommand logic)
+  useEffect(() => {
+    if (!localStorage.getItem('veiledCosmosSeenIntro')) {
+      setShowIntro(true);
+    }
+  }, []);
+
+  const closeIntro = () => {
+    localStorage.setItem('veiledCosmosSeenIntro', 'true');
+    setShowIntro(false);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch('http://192.168.4.1/status')
+        .then(response => response.json())
+        .then(data => {
+          setIsSlewing(data.moving);
+          setStatus(data.moving ? 'SLEWING...' : 'READY');
+        })
+        .catch(() => {
+          setStatus('CONNECTION ERROR');
+        });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const normalizeHours = (hours) => {
+    let value = hours % 24;
+    if (value < 0) value += 24;
+    return value;
+  };
+
+  const deltaHours = (a, b) => {
+    let diff = a - b;
+    while (diff > 12) diff -= 24;
+    while (diff < -12) diff += 24;
+    return diff;
+  };
+
+  const computeCalibration = (refA, refB) => {
+    const raDelta = deltaHours(refB.lha, refA.lha);
+    if (raDelta === 0) {
+      return null;
+    }
+    const decDelta = refB.dec - refA.dec;
+    if (decDelta === 0) {
+      return null;
+    }
+    const raScale = (refB.raSteps - refA.raSteps) / raDelta;
+    const raOffset = refA.raSteps - raScale * refA.lha;
+    const decScale = (refB.decSteps - refA.decSteps) / decDelta;
+    const decOffset = refA.decSteps - decScale * refA.dec;
+    return { raScale, raOffset, decScale, decOffset };
+  };
+
+  const sendCalibrationToEsp32 = async (calibration) => {
+    if (!calibration) {
+      setCalibrationMessage('Calibration failed: choose two different stars.');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://192.168.4.1/calibration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(calibration)
+      });
+      if (!response.ok) {
+        throw new Error('Calibration upload failed');
+      }
+    } catch (error) {
+      setCalibrationMessage('Unable to send calibration to mount.');
+    }
+  };
+
+  const saveCalibrationReference = async () => {
+    const star = BRIGHT_STARS.find(s => s.name === selectedCalStar);
+    if (!star) {
+      setCalibrationMessage('Please select a bright star.');
+      return;
+    }
+
+    try {
+      const statusResponse = await fetch('http://192.168.4.1/status');
+      if (!statusResponse.ok) throw new Error('Status request failed');
+      const statusData = await statusResponse.json();
+
+      const time = new Date();
+      const lst = SiderealTime(time, location.lon);
+      const lha = normalizeHours(lst - star.ra);
+      const reference = {
+        name: star.name,
+        ra: star.ra,
+        dec: star.dec,
+        lha,
+        raSteps: statusData.ra_steps,
+        decSteps: statusData.dec_steps
+      };
+
+      if (!starRef1 || (starRef1 && starRef2)) {
+        setStarRef1(reference);
+        setStarRef2(null);
+        setCalibrationData(null);
+        setCalibrationMessage(`Saved ${star.name} as reference 1. Pick a second star.`);
+        return;
+      }
+
+      if (star.name === starRef1.name) {
+        setCalibrationMessage('Choose a different second star than the first.');
+        return;
+      }
+
+      setStarRef2(reference);
+      const calibration = computeCalibration(starRef1, reference);
+      setCalibrationData(calibration);
+      if (calibration) {
+        await sendCalibrationToEsp32(calibration);
+        setCalibrationMessage('Two-star calibration complete. Mount mapping updated.');
+      } else {
+        setCalibrationMessage('Calibration failed. Try a different star pair.');
+      }
+    } catch (error) {
+      setCalibrationMessage('Unable to read mount position. Check connection.');
+    }
+  };
+
+  const setStarAsHome = async () => {
+    const star = BRIGHT_STARS.find(s => s.name === selectedCalStar);
+    if (!star) {
+      setCalibrationMessage('Please select a bright star.');
+      return;
+    }
+
+    try {
+      const statusResponse = await fetch('http://192.168.4.1/status');
+      if (!statusResponse.ok) throw new Error('Status request failed');
+      const statusData = await statusResponse.json();
+      const time = new Date();
+      const lst = SiderealTime(time, location.lon);
+      const lha = normalizeHours(lst - star.ra);
+
+      const payload = {
+        lha,
+        dec: star.dec,
+        ra_steps: statusData.ra_steps,
+        dec_steps: statusData.dec_steps
+      };
+
+      const response = await fetch('http://192.168.4.1/set_star_home', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        setCalibrationMessage(`${star.name} set as home reference.`);
+      } else {
+        setCalibrationMessage('Failed to set home reference on mount.');
+      }
+    } catch (error) {
+      setCalibrationMessage('Unable to set home. Check connection.');
+    }
+  };
+
+  const resetCalibration = async () => {
+    setStarRef1(null);
+    setStarRef2(null);
+    setCalibrationData(null);
+    setCalibrationMessage('Calibration reset.');
+
+    try {
+      await fetch('http://192.168.4.1/calibration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset: true })
+      });
+    } catch (error) {
+      setCalibrationMessage('Unable to reset mount calibration.');
+    }
+  };
 
   const displayList = kidsMode ? KIDS_PICKS : [...PLANETS, ...MESSIER_DATA].filter(o => 
     o.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -89,6 +275,52 @@ export default function TelescopeApp() {
     textSecondary: nightMode ? '#ff8888' : '#a0a0a0',
     accent: nightMode ? '#ff4444' : '#ff6666',
     border: nightMode ? '#330000' : '#2a2a2a'
+  };
+
+  const sendCommand = (obj, action = 'goto') => {
+    if (action === 'stop') {
+      fetch('http://192.168.4.1/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(() => setStatus('STOPPING...'))
+      .catch(() => setStatus('CONNECTION ERROR'));
+      return;
+    }
+    let ra, dec;
+    if (obj.id) {
+      // Planet
+      const observer = new Observer(location.lat, location.lon, 0);
+      const time = new Date();
+      const eq = Equator(obj.id, time, observer, true, true);
+      ra = eq.ra;
+      dec = eq.dec;
+    } else {
+      // Messier object
+      ra = obj.ra;
+      dec = obj.dec;
+    }
+    // Compute LHA
+    const observer = new Observer(location.lat, location.lon, 0);
+    const time = new Date();
+    const lst = SiderealTime(time, location.lon);
+    const lha = lst - ra;
+    // Send to ESP32
+    fetch('http://192.168.4.1/slew', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lha, dec })
+    })
+    .then(response => {
+      if (response.ok) {
+        setStatus('SLEWING...');
+      } else {
+        setStatus('SLEW ERROR');
+      }
+    })
+    .catch(() => {
+      setStatus('CONNECTION ERROR');
+    });
   };
 
   return (
@@ -108,6 +340,53 @@ export default function TelescopeApp() {
         </div>
         <button onClick={() => setSidebarVisible(!sidebarVisible)} style={{ background: 'none', border: 'none', color: theme.accent, fontSize: '1.5rem', cursor: 'pointer', padding: '8px', marginLeft: '8px' }}>☰</button>
       </div>
+
+      {showIntro && (
+        <div style={ui.modalOverlay}>
+          <div style={ui.modalBox}>
+            <h2 style={ui.modalTitle}>Welcome to Veiled Cosmos</h2>
+            <p style={ui.modalText}>This interface helps you move the ESP32 telescope mount to planets and deep sky objects using simple controls.</p>
+            <h3 style={ui.modalSubTitle}>Setup Instructions</h3>
+            <ol style={ui.modalList}>
+              <li><strong>Hardware Setup</strong>: Connect NEMA 17 motors to RA and DEC axes of your Orion StarBlast mount. Wire to ESP32 pins (RA: 12/14, DEC: 27/26). Power the ESP32 and motors.</li>
+              <li><strong>Upload ESP32 Code</strong>: Flash the <code>esp32_code.ino</code> file to your ESP32 using Arduino IDE. Ensure WiFi AP "VeiledCosmos_Mount" is created.</li>
+              <li><strong>Start the App</strong>: Run <code>npm run dev</code> in the project folder. Open the app in your browser.</li>
+              <li><strong>Connect to Mount</strong>: Connect your device to the ESP32's WiFi network. The app will poll for status.</li>
+              <li><strong>Calibrate</strong>: Level the mount, aim at Polaris, then use the calibration panel to set home and save two star references for accurate pointing.</li>
+              <li><strong>Use the Interface</strong>: Click objects to slew, use stop/home, and enjoy stargazing!</li>
+            </ol>
+            <h3 style={ui.modalSubTitle}>Interface Guide</h3>
+            <ul style={ui.modalList}>
+              <li><strong>Object Grid</strong>: click any planet or nebula to send the mount there.</li>
+              <li><strong>Search</strong>: type a name to filter stars, galaxies, and nebulae.</li>
+              <li><strong>Kids Mode</strong>: simpler cards and fun names for younger users.</li>
+              <li><strong>Night Vision</strong>: toggles the darker, easier-to-read display.</li>
+              <li><strong>Stop</strong>: halts motion immediately via the ESP32 stop command.</li>
+              <li><strong>Home</strong>: returns the mount to the parking position.</li>
+            </ul>
+            <button style={ui.modalBtn} onClick={closeIntro}>Got it, continue</button>
+          </div>
+        </div>
+      )}
+
+      {showCalGuide && (
+        <div style={ui.modalOverlay}>
+          <div style={ui.modalBox}>
+            <h2 style={ui.modalTitle}>Calibration Guide</h2>
+            <p style={ui.modalText}>Follow these steps to calibrate your mount for accurate pointing. This uses a two-star alignment method.</p>
+            <ol style={ui.modalList}>
+              <li><strong>Prepare the Mount</strong>: Level your Orion StarBlast mount on a stable surface. Aim the telescope roughly at Polaris (North Star) using the manual knobs.</li>
+              <li><strong>Set Home Reference</strong>: In the app, select "Polaris" from the star dropdown. Manually align the telescope to Polaris. Click "Set selected star as home" to record this position as the mount's zero point.</li>
+              <li><strong>Choose First Reference Star</strong>: Select a bright star (e.g., Vega) from the dropdown. Manually slew the mount to center that star in your eyepiece. Click "Save star reference" to record reference 1.</li>
+              <li><strong>Choose Second Reference Star</strong>: Select a different bright star (e.g., Altair) from the dropdown. Manually align to it. Click "Save star reference" again to record reference 2 and compute calibration.</li>
+              <li><strong>Verify Calibration</strong>: The app will show computed RA/DEC scales. Test by clicking objects in the grid — the mount should now point accurately.</li>
+              <li><strong>Reset if Needed</strong>: If calibration seems off, click "Reset calibration" and repeat steps 2-4.</li>
+            </ol>
+            <p style={ui.modalText}>Tip: Use stars at least 45° apart for best results. Calibration improves pointing accuracy across the sky.</p>
+            <button style={ui.modalBtn} onClick={() => setShowCalGuide(false)}>Close Guide</button>
+          </div>
+        </div>
+      )}
 
       <div style={{...ui.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
         <div style={ui.controls}>
@@ -182,6 +461,46 @@ export default function TelescopeApp() {
             <span style={ui.btnIcon}>🛑</span>
             STOP MOUNT
           </button>
+
+          <button 
+            style={{...ui.actionBtn, background: '#333'}}
+            onClick={() => {
+              fetch('http://192.168.4.1/home', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+              })
+              .then(() => setStatus('HOMING...'))
+              .catch(() => setStatus('CONNECTION ERROR'));
+            }}
+          >
+            <span style={ui.btnIcon}>🏠</span>
+            HOME MOUNT
+          </button>
+
+          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border}}>
+            <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>🧭 Star Calibration</h3>
+            <p style={ui.calibText}>Align the mount to a bright star, choose it below, then save two different star references for better accuracy.</p>
+            <select
+              value={selectedCalStar}
+              onChange={e => setSelectedCalStar(e.target.value)}
+              style={{...ui.select, background: theme.card, color: theme.text, borderColor: theme.border}}
+            >
+              {BRIGHT_STARS.map(star => (
+                <option key={star.name} value={star.name}>{star.name}</option>
+              ))}
+            </select>
+            <button style={ui.calibBtn} onClick={saveCalibrationReference}>Save star reference</button>
+            <button style={ui.calibBtnSecondary} onClick={setStarAsHome}>Set selected star as home</button>
+            <button style={ui.calibBtnSecondary} onClick={() => setShowCalGuide(true)}>Show Calibration Guide</button>
+            <div style={ui.calibRow}>Reference 1: {starRef1 ? starRef1.name : 'None'}</div>
+            <div style={ui.calibRow}>Reference 2: {starRef2 ? starRef2.name : 'None'}</div>
+            {calibrationData && (
+              <div style={ui.calibRow}>
+                RA scale: {calibrationData.raScale.toFixed(1)}, DEC scale: {calibrationData.decScale.toFixed(1)}
+              </div>
+            )}
+            <div style={ui.calibMessage}>{calibrationMessage}</div>
+          </div>
 
           <div style={{...ui.infoBox, background: theme.card, borderColor: theme.border}}>
             <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>⚙️ Calibration</h3>
@@ -425,6 +744,113 @@ const ui = {
     display: 'flex',
     justifyContent: 'space-between',
     opacity: 0.7
+  },
+  calibBox: {
+    borderRadius: '18px',
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    border: '1px solid'
+  },
+  calibText: {
+    margin: 0,
+    opacity: 0.8,
+    lineHeight: 1.6,
+    fontSize: '0.95rem'
+  },
+  select: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: '12px',
+    border: '1px solid',
+    fontSize: '0.95rem',
+    outline: 'none'
+  },
+  calibBtn: {
+    width: '100%',
+    padding: '12px',
+    borderRadius: '12px',
+    border: 'none',
+    background: '#2196F3',
+    color: '#fff',
+    cursor: 'pointer',
+    fontWeight: '700'
+  },
+  calibBtnSecondary: {
+    width: '100%',
+    padding: '12px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: '#222',
+    color: '#fff',
+    cursor: 'pointer',
+    fontWeight: '700'
+  },
+  calibRow: {
+    fontSize: '0.9rem',
+    opacity: 0.85,
+    lineHeight: 1.5
+  },
+  calibMessage: {
+    marginTop: '8px',
+    fontSize: '0.9rem',
+    color: '#ffcc66'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '20px',
+    zIndex: 999
+  },
+  modalBox: {
+    width: '100%',
+    maxWidth: '520px',
+    background: '#111',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '20px',
+    padding: '28px',
+    boxShadow: '0 22px 60px rgba(0,0,0,0.45)'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '1.6rem',
+    marginBottom: '12px',
+    color: '#ffcc66'
+  },
+  modalSubTitle: {
+    margin: '20px 0 10px 0',
+    fontSize: '1.3rem',
+    color: '#ffcc66'
+  },
+  modalText: {
+    fontSize: '1rem',
+    lineHeight: '1.7',
+    opacity: 0.9,
+    marginBottom: '16px'
+  },
+  modalList: {
+    paddingLeft: '20px',
+    marginBottom: '20px',
+    lineHeight: '1.8',
+    color: '#ddd'
+  },
+  modalBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    padding: '14px',
+    borderRadius: '14px',
+    background: '#ff6666',
+    color: '#fff',
+    border: 'none',
+    fontWeight: '700',
+    cursor: 'pointer'
   }
 };
 
