@@ -83,6 +83,7 @@ export default function TelescopeApp() {
   const [calibrationData, setCalibrationData] = useState(null);
   const [calibrationMessage, setCalibrationMessage] = useState('');
   const [tracking, setTracking] = useState(false);
+  const [mountPosition, setMountPosition] = useState({ ra: 0, dec: 0 });
 
   useEffect(() => {
     if (!localStorage.getItem('veiledCosmosSeenIntro')) {
@@ -106,6 +107,7 @@ export default function TelescopeApp() {
           if (data.moving) newStatus = 'SLEWING...';
           else if (data.tracking) newStatus = 'TRACKING';
           setStatus(newStatus);
+          setMountPosition({ ra: data.ra_steps, dec: data.dec_steps });
         })
         .catch(() => {
           setStatus('CONNECTION ERROR');
@@ -129,11 +131,13 @@ export default function TelescopeApp() {
 
   const computeCalibration = (refA, refB) => {
     const raDelta = deltaHours(refB.lha, refA.lha);
-    if (raDelta === 0) {
+    if (Math.abs(raDelta) < 0.1) {
+      setCalibrationMessage('Stars too close together. Choose stars at least 30° apart in RA.');
       return null;
     }
     const decDelta = refB.dec - refA.dec;
-    if (decDelta === 0) {
+    if (Math.abs(decDelta) < 5) {
+      setCalibrationMessage('Stars too close in declination. Choose stars at least 10° apart in Dec.');
       return null;
     }
     const raScale = (refB.raSteps - refA.raSteps) / raDelta;
@@ -144,10 +148,7 @@ export default function TelescopeApp() {
   };
 
   const sendCalibrationToEsp32 = async (calibration) => {
-    if (!calibration) {
-      setCalibrationMessage('Calibration failed: choose two different stars.');
-      return;
-    }
+    if (!calibration) return;
 
     try {
       const response = await fetch('http://192.168.4.1/calibration', {
@@ -155,11 +156,11 @@ export default function TelescopeApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(calibration)
       });
-      if (!response.ok) {
-        throw new Error('Calibration upload failed');
-      }
-    } catch {
+      if (!response.ok) throw new Error('Calibration upload failed');
+      setCalibrationMessage('Calibration successful! Mount mapping updated.');
+    } catch (error) {
       setCalibrationMessage('Unable to send calibration to mount.');
+      console.error(error);
     }
   };
 
@@ -177,7 +178,7 @@ export default function TelescopeApp() {
 
       const time = new Date();
       const lst = SiderealTime(time, location.lon);
-      const lha = normalizeHours(lst - star.ra);
+      let lha = normalizeHours(lst - star.ra);
       const reference = {
         name: star.name,
         ra: star.ra,
@@ -187,30 +188,28 @@ export default function TelescopeApp() {
         decSteps: statusData.dec_steps
       };
 
-      if (!starRef1 || (starRef1 && starRef2)) {
+      if (!starRef1) {
         setStarRef1(reference);
         setStarRef2(null);
         setCalibrationData(null);
-        setCalibrationMessage(`Saved ${star.name} as reference 1. Pick a second star.`);
+        setCalibrationMessage(`Saved ${star.name} as reference 1. Now select a different star for reference 2.`);
         return;
       }
 
-      if (star.name === starRef1.name) {
-        setCalibrationMessage('Choose a different second star than the first.');
+      if (!starRef2 && starRef1.name !== star.name) {
+        setStarRef2(reference);
+        const calibration = computeCalibration(starRef1, reference);
+        setCalibrationData(calibration);
+        if (calibration) {
+          await sendCalibrationToEsp32(calibration);
+        }
         return;
       }
 
-      setStarRef2(reference);
-      const calibration = computeCalibration(starRef1, reference);
-      setCalibrationData(calibration);
-      if (calibration) {
-        await sendCalibrationToEsp32(calibration);
-        setCalibrationMessage('Two-star calibration complete. Mount mapping updated.');
-      } else {
-        setCalibrationMessage('Calibration failed. Try a different star pair.');
-      }
-    } catch {
+      setCalibrationMessage('Please select a different star for reference 2.');
+    } catch (error) {
       setCalibrationMessage('Unable to read mount position. Check connection.');
+      console.error(error);
     }
   };
 
@@ -227,10 +226,10 @@ export default function TelescopeApp() {
       const statusData = await statusResponse.json();
       const time = new Date();
       const lst = SiderealTime(time, location.lon);
-      const lha = normalizeHours(lst - star.ra);
+      let lha = normalizeHours(lst - star.ra);
 
       const payload = {
-        lha,
+        lha: lha,
         dec: star.dec,
         ra_steps: statusData.ra_steps,
         dec_steps: statusData.dec_steps
@@ -243,11 +242,15 @@ export default function TelescopeApp() {
       });
       if (response.ok) {
         setCalibrationMessage(`${star.name} set as home reference.`);
+        setStarRef1(null);
+        setStarRef2(null);
+        setCalibrationData(null);
       } else {
         setCalibrationMessage('Failed to set home reference on mount.');
       }
-    } catch {
+    } catch (error) {
       setCalibrationMessage('Unable to set home. Check connection.');
+      console.error(error);
     }
   };
 
@@ -278,11 +281,13 @@ export default function TelescopeApp() {
       });
       if (response.ok) {
         setTracking(newTracking);
+        setStatus(newTracking ? 'TRACKING' : 'READY');
       } else {
         setStatus('TRACKING ERROR');
       }
-    } catch {
+    } catch (error) {
       setStatus('CONNECTION ERROR');
+      console.error(error);
     }
   };
 
@@ -301,7 +306,7 @@ export default function TelescopeApp() {
     border: nightMode ? '#330000' : '#2a2a2a'
   };
 
-  const sendCommand = (obj, action = 'goto') => {
+ const sendCommand = (obj, action = 'goto') => {
     if (action === 'stop') {
       fetch('http://192.168.4.1/stop', {
         method: 'POST',
@@ -311,39 +316,47 @@ export default function TelescopeApp() {
       .catch(() => setStatus('CONNECTION ERROR'));
       return;
     }
+
+    if (action === 'home') {
+      fetch('http://192.168.4.1/home', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(() => setStatus('HOMING...'))
+      .catch(() => setStatus('CONNECTION ERROR'));
+      return;
+    }
+
+    const observer = new Observer(location.lat, location.lon, 0);
+    const time = new Date();
+    const lst = SiderealTime(time, location.lon);
+
     let ra, dec;
-    if (obj.id) {
-      // Planet
+    if (obj.id !== undefined) {
       const eq = Equator(obj.id, time, observer, true, true);
       ra = eq.ra;
       dec = eq.dec;
     } else {
-      // Messier object
       ra = obj.ra;
       dec = obj.dec;
     }
-    // Compute LHA
-    const observer = new Observer(location.lat, location.lon, 0);
-    const time = new Date();
-    const lst = SiderealTime(time, location.lon);
-    const lha = lst - ra;
-    // Send to ESP32
+
+    let ha = normalizeHours(lst - ra);
+
     fetch('http://192.168.4.1/slew', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lha, dec })
+      body: JSON.stringify({ lha: ha, dec: dec })
     })
     .then(response => {
       if (response.ok) {
         setStatus('SLEWING...');
-        setTracking(false);
+        if (tracking) toggleTracking();
       } else {
         setStatus('SLEW ERROR');
       }
     })
-    .catch(() => {
-      setStatus('CONNECTION ERROR');
-    });
+    .catch(() => setStatus('CONNECTION ERROR'));
   };
 
   return (
@@ -491,14 +504,7 @@ export default function TelescopeApp() {
 
           <button 
             style={{...ui.actionBtn, background: '#333'}}
-            onClick={() => {
-              fetch('http://192.168.4.1/home', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-              })
-              .then(() => setStatus('HOMING...'))
-              .catch(() => setStatus('CONNECTION ERROR'));
-            }}
+            onClick={() => sendCommand(null, 'home')}
           >
             <span style={ui.btnIcon}>🏠</span>
             HOME MOUNT
