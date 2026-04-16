@@ -70,7 +70,7 @@ export default function TelescopeApp() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('READY');
   // eslint-disable-next-line no-unused-vars
-  const [location, setLocation] = useState({ lat: 40.71, lon: -73.93 });
+  const [location, setLocation] = useState({ lat: null, lon: null });
   const [nightMode, setNightMode] = useState(false);
   const [kidsMode, setKidsMode] = useState(false); // New State
   const [isSlewing, setIsSlewing] = useState(false);
@@ -115,6 +115,30 @@ export default function TelescopeApp() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+useEffect(() => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        // Success: set the actual location
+        setLocation({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+        });
+      },
+      (err) => {
+        // Error or permission denied: fallback to a default (e.g., New York)
+        console.warn("Geolocation error:", err);
+        setLocation({ lat: 40.71, lon: -73.93 });
+        setCalibrationMessage("Could not get your location. Using default coordinates (New York).");
+      }
+    );
+  } else {
+    // Browser doesn't support geolocation
+    setLocation({ lat: 40.71, lon: -73.93 });
+    setCalibrationMessage("Geolocation not supported. Using default coordinates (New York).");
+  }
+}, []);
 
   const normalizeHours = (hours) => {
     let value = hours % 24;
@@ -165,6 +189,10 @@ export default function TelescopeApp() {
   };
 
   const saveCalibrationReference = async () => {
+    if (location.lon === null) {
+  setCalibrationMessage("Waiting for location...");
+  return;
+}
     const star = BRIGHT_STARS.find(s => s.name === selectedCalStar);
     if (!star) {
       setCalibrationMessage('Please select a bright star.');
@@ -214,6 +242,10 @@ export default function TelescopeApp() {
   };
 
   const setStarAsHome = async () => {
+    if (location.lon === null) {
+  setCalibrationMessage("Waiting for location...");
+  return;
+}
     const star = BRIGHT_STARS.find(s => s.name === selectedCalStar);
     if (!star) {
       setCalibrationMessage('Please select a bright star.');
@@ -307,6 +339,10 @@ export default function TelescopeApp() {
   };
 
  const sendCommand = (obj, action = 'goto') => {
+  if (location.lat === null || location.lon === null) {
+  setStatus("WAITING FOR LOCATION...");
+  return;
+}
     if (action === 'stop') {
       fetch('http://192.168.4.1/stop', {
         method: 'POST',
@@ -588,8 +624,10 @@ export default function TelescopeApp() {
             </ol>
             <div style={ui.infoFooter}>
               <span>📍 Current Location</span>
-              <span style={{fontFamily: 'monospace'}}>{location.lat}°, {location.lon}°</span>
-            </div>
+<span>
+  {location.lat !== null ? location.lat.toFixed(2) : "?"}°,
+  {location.lon !== null ? location.lon.toFixed(2) : "?"}°
+</span>            </div>
           </div>
         </div>}
       </div>
