@@ -142,6 +142,47 @@ void setup() {
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   });
 
+  // -------- MOVE RA RELATIVE (POST) --------
+server.on("/move_ra", HTTP_POST, []() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"no body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+  if (error || !doc["steps"].is<int>()) {
+    server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
+    return;
+  }
+  int steps = doc["steps"];
+  long current = stepperRA.currentPosition();
+  stepperRA.moveTo(current + steps);
+  tracking = false;   // stop tracking during manual move
+  server.send(200, "application/json", "{\"status\":\"moving_ra\"}");
+});
+
+// -------- MOVE DEC RELATIVE (POST) --------
+// -------- MOVE DEC RELATIVE (POST) --------
+server.on("/move_dec", HTTP_POST, []() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"no body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, server.arg("plain"));
+  if (error || !doc["steps"].is<int>()) {
+    server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
+    return;
+  }
+  int steps = doc["steps"];
+  long current = stepperDEC.currentPosition();
+  stepperDEC.moveTo(current + steps);
+  tracking = false;   // stop tracking during manual move
+  server.send(200, "application/json", "{\"status\":\"moving_dec\"}");
+});
+
   // -------- STOP (POST) --------
   server.on("/stop", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");

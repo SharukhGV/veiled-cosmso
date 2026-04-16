@@ -359,6 +359,20 @@ export default function TelescopeApp() {
     .catch(() => setStatus('CONNECTION ERROR'));
   };
 
+  const moveRelative = async (axis, steps) => {
+  const endpoint = axis === 'ra' ? '/move_ra' : '/move_dec';
+  try {
+    await fetch(`http://192.168.4.1${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps })
+    });
+    setStatus('MOVING...');
+  } catch (error) {
+    setStatus('CONNECTION ERROR');
+  }
+};
+
   return (
     <div style={{
       ...ui.container,
@@ -501,6 +515,23 @@ export default function TelescopeApp() {
             <span style={ui.btnIcon}>🛑</span>
             STOP MOUNT
           </button>
+         
+
+          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border}}>
+  <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>🕹️ Manual Fine Moves</h3>
+  <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
+    <button style={ui.smallBtn} onClick={() => moveRelative('ra', 200)}>RA +200</button>
+    <button style={ui.smallBtn} onClick={() => moveRelative('ra', -200)}>RA -200</button>
+    <button style={ui.smallBtn} onClick={() => moveRelative('dec', 200)}>DEC +200</button>
+    <button style={ui.smallBtn} onClick={() => moveRelative('dec', -200)}>DEC -200</button>
+  </div>
+  <div style={{display: 'flex', gap: '8px', marginTop: '8px'}}>
+    <button style={ui.smallBtn} onClick={() => moveRelative('ra', 20)}>RA +20</button>
+    <button style={ui.smallBtn} onClick={() => moveRelative('ra', -20)}>RA -20</button>
+    <button style={ui.smallBtn} onClick={() => moveRelative('dec', 20)}>DEC +20</button>
+    <button style={ui.smallBtn} onClick={() => moveRelative('dec', -20)}>DEC -20</button>
+  </div>
+</div>
 
           <button 
             style={{...ui.actionBtn, background: '#333'}}
@@ -533,8 +564,13 @@ export default function TelescopeApp() {
             <button style={ui.calibBtn} onClick={saveCalibrationReference}>Save star reference</button>
             <button style={ui.calibBtnSecondary} onClick={setStarAsHome}>Set selected star as home</button>
             <button style={ui.calibBtnSecondary} onClick={() => setShowCalGuide(true)}>Show Calibration Guide</button>
+       
             <div style={ui.calibRow}>Reference 1: {starRef1 ? starRef1.name : 'None'}</div>
-            <div style={ui.calibRow}>Reference 2: {starRef2 ? starRef2.name : 'None'}</div>
+            <div style={ui.calibRow}>Reference 2: {starRef2 ? starRef2.name : 'None'}</div>   
+            <div></div>  
+             <button style={ui.calibBtnSecondary} onClick={resetCalibration}>
+  Reset calibration
+</button>
             {calibrationData && (
               <div style={ui.calibRow}>
                 RA scale: {calibrationData.raScale.toFixed(1)}, DEC scale: {calibrationData.decScale.toFixed(1)}
@@ -578,6 +614,17 @@ const ui = {
     flexWrap: 'wrap',
     gap: '16px'
   },
+  smallBtn: {
+  padding: '8px 12px',
+  borderRadius: '8px',
+  border: 'none',
+  background: '#444',
+  color: '#fff',
+  fontWeight: 'bold',
+  cursor: 'pointer',
+  fontSize: '0.8rem',
+  transition: '0.1s',
+},
   title: { 
     fontSize: 'clamp(1.5rem, 5vw, 2.2rem)', 
     letterSpacing: '2px', 
