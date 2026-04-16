@@ -14,7 +14,7 @@ WebServer server(80);
 #define RA_DIR_PIN  14
 #define DEC_STEP_PIN 27
 #define DEC_DIR_PIN  26
-#define RA_ENABLE_PIN 13
+#define RA_ENABLE_PIN 33
 #define DEC_ENABLE_PIN 25
 
 AccelStepper stepperRA(AccelStepper::DRIVER, RA_STEP_PIN, RA_DIR_PIN);
