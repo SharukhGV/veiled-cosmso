@@ -83,7 +83,7 @@ const WINTER_PICKS = [
 ];
 
 const SUMMER_PICKS = [
-  { id: Body.Moon, name: "Moon", img: moon, common: "The 'X' Marks the Spot" },
+  { id: Body.Moon, name: "Moon", img: moon, common: "Earth's Neighbor" },
   { id: Body.Venus, name: "Venus", img: venusImg, common: "The Evening Star" },
   { id: Body.Jupiter, name: "Jupiter", img: jupiterImg, common: "King of Planets" },
   { name: "M13", common: "Great Cluster", ra: 16.6949, dec: 36.4613, img: m13Img },
