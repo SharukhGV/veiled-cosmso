@@ -14,11 +14,18 @@ import orionImg from './assets/orionnebula.png';
 import pleiadesImg from './assets/pleiades.png';
 import m13Img from './assets/m13starcluster.png';
 import m51Img from './assets/m51whirpool.jpg';
-// import starData from '../public/starData.json';
+import siriusImg from './assets/sirius.png';
+import betelgeuseImg from './assets/betelgeuse.png';
+import hyadesImg from './assets/hyades.png';
+import m35Img from './assets/m35.png';
+import beehiveImg from './assets/m44.png';
+import mizarImg from './assets/mizar.png';
+import albireoImg from './assets/albireo.png';
+import lagoonImg from './assets/lagoon.png';
+import corCaroliImg from './assets/corcaroli.png';
 import { useMemo } from 'react';
 
 const MESSIER_DATA = [
-
   { "name": "M31", "common": "Andromeda Galaxy", "ra": 0.7123, "dec": 41.2687, img: andromedaImg },
   { "name": "M42", "common": "Orion Nebula", "ra": 5.5881, "dec": -5.3911, img: orionImg },
   { "name": "M45", "common": "Pleiades", "ra": 3.7836, "dec": 24.1167, img: pleiadesImg },
@@ -49,9 +56,10 @@ const MESSIER_DATA = [
   { "name": "M104", "common": "Sombrero Galaxy", "ra": 12.67, "dec": -11.62 },
   { "name": "M64", "common": "Black Eye Galaxy", "ra": 12.94, "dec": 21.68 },
   { "name": "M15", "common": "Pegasus Cluster", "ra": 21.50, "dec": 12.17 }
-]
+];
+
 const PLANETS = [
-  { id: Body.Moon, name: "Moon", img: moon, isEmoji: true }, // Keeping emoji for moon
+  { id: Body.Moon, name: "Moon", img: moon },
   { id: Body.Mercury, name: "Mercury", img: mercuryImg },
   { id: Body.Venus, name: "Venus", img: venusImg },
   { id: Body.Mars, name: "Mars", img: marsImg },
@@ -60,26 +68,39 @@ const PLANETS = [
   { id: Body.Uranus, name: "Uranus", img: uranusImg },
   { id: Body.Neptune, name: "Neptune", img: neptuneImg }
 ];
-// Curated list for Kids Mode (Top 10 visually impressive objects)
-const KIDS_PICKS = [
+
+const WINTER_PICKS = [
   { id: Body.Moon, name: "Moon", img: moon, common: "Earth's Neighbor" },
-  { id: Body.Jupiter, name: "Jupiter", img: jupiterImg, common: "King of Planets" },
-  { id: Body.Saturn, name: "Saturn", img: saturnImg, common: "Ringed Giant" },
   { id: Body.Mars, name: "Mars", img: marsImg, common: "The Red Planet" },
-  { id: Body.Venus, name: "Venus", img: venusImg, common: "Morning Star" },
-  { name: "M45", common: "The Pleiades", ra: 3.7836, dec: 24.1167, img: pleiadesImg },
-  { name: "M31", common: "Andromeda", ra: 0.7123, dec: 41.2687, img: andromedaImg },
   { name: "M42", common: "Orion Nebula", ra: 5.5881, dec: -5.3911, img: orionImg },
-  { name: "M13", common: "Star Cluster", ra: 16.6949, dec: 36.4613, img: m13Img },
-  { name: "M51", common: "Whirlpool", ra: 13.4981, dec: 47.1953, img: m51Img }
+  { name: "M45", common: "The Pleiades", ra: 3.7836, dec: 24.1167, img: pleiadesImg },
+  { name: "Sirius", common: "The Brightest Star", ra: 6.7525, dec: -16.7161, img: siriusImg },
+  { name: "M31", common: "Andromeda Galaxy", ra: 0.7123, dec: 41.2687, img: andromedaImg },
+  { name: "Betelgeuse", common: "The Red Giant", ra: 5.9195, dec: 7.4073, img: betelgeuseImg },
+  { id: Body.Jupiter, name: "Jupiter", img: jupiterImg, common: "King of Planets" },
+  { name: "Hyades", common: "The V-Shape Cluster", ra: 4.45, dec: 15.95, img: hyadesImg },
+  { name: "M35", common: "Starry Patch", ra: 6.148, dec: 24.33, img: m35Img }
 ];
+
+const SUMMER_PICKS = [
+  { id: Body.Moon, name: "Moon", img: moon, common: "The 'X' Marks the Spot" },
+  { id: Body.Venus, name: "Venus", img: venusImg, common: "The Evening Star" },
+  { id: Body.Jupiter, name: "Jupiter", img: jupiterImg, common: "King of Planets" },
+  { name: "M13", common: "Great Cluster", ra: 16.6949, dec: 36.4613, img: m13Img },
+  { name: "M44", common: "The Beehive", ra: 8.6667, dec: 19.6667, img: beehiveImg },
+  { name: "Mizar", common: "Double Star", ra: 13.3986, dec: 54.9253, img: mizarImg },
+  { name: "M51", common: "Whirlpool Galaxy", ra: 13.4981, dec: 47.1953, img: m51Img },
+  { name: "Albireo", common: "Blue & Gold Stars", ra: 19.5126, dec: 27.9597, img: albireoImg },
+  { name: "M8", common: "Lagoon Nebula", ra: 18.062, dec: -24.38, img: lagoonImg },
+  { name: "Cor Caroli", common: "Heart of Charles", ra: 12.9372, dec: 38.3175, img: corCaroliImg }
+];
+
 export default function TelescopeApp() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('READY');
-  // eslint-disable-next-line no-unused-vars
   const [location, setLocation] = useState({ lat: null, lon: null });
   const [nightMode, setNightMode] = useState(false);
-  const [kidsMode, setKidsMode] = useState(false); // New State
+  const [kidsMode, setKidsMode] = useState(false);
   const [isSlewing, setIsSlewing] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [showIntro, setShowIntro] = useState(false);
@@ -91,29 +112,26 @@ export default function TelescopeApp() {
   const [calibrationMessage, setCalibrationMessage] = useState('');
   const [tracking, setTracking] = useState(false);
   const [mountPosition, setMountPosition] = useState({ ra: 0, dec: 0 });
-const [extraStarData, setExtraStarData] = useState([]);
+  const [extraStarData, setExtraStarData] = useState([]);
+  const [isSummer, setIsSummer] = useState(true);
 
-
-// Fetch star data on mount
   useEffect(() => {
-    fetch('/starData.json') // Ensure the path is correct for your build setup
+    fetch('/starData.json')
       .then(res => res.json())
       .then(data => {
-        // Map the JSON structure to match your app's object format
         const formattedStars = data
-          .filter(star => star.proper) // Only include stars with names for searching
+          .filter(star => star.proper)
           .map(star => ({
             name: star.proper,
             common: `${star.con || ''} Star (Mag: ${star.mag})`,
             ra: star.ra,
             dec: star.dec,
-            isStar: true // flag to identify source if needed
+            isStar: true
           }));
         setExtraStarData(formattedStars);
       })
       .catch(err => console.error("Error loading starData.json:", err));
   }, []);
-
 
   useEffect(() => {
     if (!localStorage.getItem('veiledCosmosSeenIntro')) {
@@ -146,29 +164,23 @@ const [extraStarData, setExtraStarData] = useState([]);
     return () => clearInterval(interval);
   }, []);
 
-useEffect(() => {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        // Success: set the actual location
-        setLocation({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-        });
-      },
-      (err) => {
-        // Error or permission denied: fallback to a default (e.g., New York)
-        console.warn("Geolocation error:", err);
-        setLocation({ lat: 40.71, lon: -73.93 });
-        setCalibrationMessage("Could not get your location. Using default coordinates (New York).");
-      }
-    );
-  } else {
-    // Browser doesn't support geolocation
-    setLocation({ lat: 40.71, lon: -73.93 });
-    setCalibrationMessage("Geolocation not supported. Using default coordinates (New York).");
-  }
-}, []);
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        },
+        (err) => {
+          console.warn("Geolocation error:", err);
+          setLocation({ lat: 40.71, lon: -73.93 });
+          setCalibrationMessage("Could not get your location. Using default coordinates (New York).");
+        }
+      );
+    } else {
+      setLocation({ lat: 40.71, lon: -73.93 });
+      setCalibrationMessage("Geolocation not supported. Using default coordinates (New York).");
+    }
+  }, []);
 
   const normalizeHours = (hours) => {
     let value = hours % 24;
@@ -203,7 +215,6 @@ useEffect(() => {
 
   const sendCalibrationToEsp32 = async (calibration) => {
     if (!calibration) return;
-
     try {
       const response = await fetch('http://192.168.4.1/calibration', {
         method: 'POST',
@@ -220,20 +231,18 @@ useEffect(() => {
 
   const saveCalibrationReference = async () => {
     if (location.lon === null) {
-  setCalibrationMessage("Waiting for location...");
-  return;
-}
+      setCalibrationMessage("Waiting for location...");
+      return;
+    }
     const star = BRIGHT_STARS.find(s => s.name === selectedCalStar);
     if (!star) {
       setCalibrationMessage('Please select a bright star.');
       return;
     }
-
     try {
       const statusResponse = await fetch('http://192.168.4.1/status');
       if (!statusResponse.ok) throw new Error('Status request failed');
       const statusData = await statusResponse.json();
-
       const time = new Date();
       const lst = SiderealTime(time, location.lon);
       let lha = normalizeHours(lst - star.ra);
@@ -245,7 +254,6 @@ useEffect(() => {
         raSteps: statusData.ra_steps,
         decSteps: statusData.dec_steps
       };
-
       if (!starRef1) {
         setStarRef1(reference);
         setStarRef2(null);
@@ -253,7 +261,6 @@ useEffect(() => {
         setCalibrationMessage(`Saved ${star.name} as reference 1. Now select a different star for reference 2.`);
         return;
       }
-
       if (!starRef2 && starRef1.name !== star.name) {
         setStarRef2(reference);
         const calibration = computeCalibration(starRef1, reference);
@@ -263,7 +270,6 @@ useEffect(() => {
         }
         return;
       }
-
       setCalibrationMessage('Please select a different star for reference 2.');
     } catch (error) {
       setCalibrationMessage('Unable to read mount position. Check connection.');
@@ -273,15 +279,14 @@ useEffect(() => {
 
   const setStarAsHome = async () => {
     if (location.lon === null) {
-  setCalibrationMessage("Waiting for location...");
-  return;
-}
+      setCalibrationMessage("Waiting for location...");
+      return;
+    }
     const star = BRIGHT_STARS.find(s => s.name === selectedCalStar);
     if (!star) {
       setCalibrationMessage('Please select a bright star.');
       return;
     }
-
     try {
       const statusResponse = await fetch('http://192.168.4.1/status');
       if (!statusResponse.ok) throw new Error('Status request failed');
@@ -289,14 +294,12 @@ useEffect(() => {
       const time = new Date();
       const lst = SiderealTime(time, location.lon);
       let lha = normalizeHours(lst - star.ra);
-
       const payload = {
         lha: lha,
         dec: star.dec,
         ra_steps: statusData.ra_steps,
         dec_steps: statusData.dec_steps
       };
-
       const response = await fetch('http://192.168.4.1/set_star_home', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -321,7 +324,6 @@ useEffect(() => {
     setStarRef2(null);
     setCalibrationData(null);
     setCalibrationMessage('Calibration reset.');
-
     try {
       await fetch('http://192.168.4.1/calibration', {
         method: 'POST',
@@ -353,34 +355,22 @@ useEffect(() => {
     }
   };
 
-// UPDATED: Filter logic to include starData.json entries
-// Inside your TelescopeApp component
-const displayList = useMemo(() => {
-  // 1. Return the curated list immediately if in Kids Mode
-  if (kidsMode) return KIDS_PICKS;
-
-  // 2. Optimization: If search is empty, don't process the massive star list
-  // Just show Planets and Messier objects
-  if (!search.trim()) {
-    return [...PLANETS, ...MESSIER_DATA];
-  }
-
-  const searchTerm = search.toLowerCase();
-  
-  // 3. Combine your datasets
-  const combinedSource = [...PLANETS, ...MESSIER_DATA, ...extraStarData];
-
-  // 4. Filter and Slice
-  // .slice(0, 50) is CRITICAL for performance. 
-  // The browser cannot render 10,000 search results at once.
-  return combinedSource
-    .filter(obj => 
-      obj.name.toLowerCase().includes(searchTerm) || 
-      (obj.common && obj.common.toLowerCase().includes(searchTerm))
-    )
-    .slice(0, 50); 
-
-}, [search, kidsMode, extraStarData]); // Only re-run if these change
+  const displayList = useMemo(() => {
+    if (kidsMode) {
+      return isSummer ? SUMMER_PICKS : WINTER_PICKS;
+    }
+    if (!search.trim()) {
+      return [...PLANETS, ...MESSIER_DATA];
+    }
+    const searchTerm = search.toLowerCase();
+    const combinedSource = [...PLANETS, ...MESSIER_DATA, ...extraStarData];
+    return combinedSource
+      .filter(obj => 
+        obj.name.toLowerCase().includes(searchTerm) || 
+        (obj.common && obj.common.toLowerCase().includes(searchTerm))
+      )
+      .slice(0, 50);
+  }, [search, kidsMode, isSummer, extraStarData]);
 
   const theme = {
     bg: nightMode ? '#0a0a0a' : '#050505',
@@ -389,38 +379,30 @@ const displayList = useMemo(() => {
     text: nightMode ? '#ff4444' : '#ffffff',
     textSecondary: nightMode ? '#ff8888' : '#a0a0a0',
     accent: nightMode ? '#ff4444' : '#ff6666',
-    border: nightMode ? '#330000' : '#2a2a2a'
+    border: nightMode ? '#330000' : '#2a2a2a',
+    radius: '12px'
   };
 
- const sendCommand = (obj, action = 'goto') => {
-  if (location.lat === null || location.lon === null) {
-  setStatus("WAITING FOR LOCATION...");
-  return;
-}
+  const sendCommand = (obj, action = 'goto') => {
+    if (location.lat === null || location.lon === null) {
+      setStatus("WAITING FOR LOCATION...");
+      return;
+    }
     if (action === 'stop') {
-      fetch('http://192.168.4.1/stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(() => setStatus('STOPPING...'))
-      .catch(() => setStatus('CONNECTION ERROR'));
+      fetch('http://192.168.4.1/stop', { method: 'POST' })
+        .then(() => setStatus('STOPPING...'))
+        .catch(() => setStatus('CONNECTION ERROR'));
       return;
     }
-
     if (action === 'home') {
-      fetch('http://192.168.4.1/home', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(() => setStatus('HOMING...'))
-      .catch(() => setStatus('CONNECTION ERROR'));
+      fetch('http://192.168.4.1/home', { method: 'POST' })
+        .then(() => setStatus('HOMING...'))
+        .catch(() => setStatus('CONNECTION ERROR'));
       return;
     }
-
     const observer = new Observer(location.lat, location.lon, 0);
     const time = new Date();
     const lst = SiderealTime(time, location.lon);
-
     let ra, dec;
     if (obj.id !== undefined) {
       const eq = Equator(obj.id, time, observer, true, true);
@@ -430,9 +412,7 @@ const displayList = useMemo(() => {
       ra = obj.ra;
       dec = obj.dec;
     }
-
     let ha = normalizeHours(lst - ra);
-
     fetch('http://192.168.4.1/slew', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -450,38 +430,38 @@ const displayList = useMemo(() => {
   };
 
   const moveRelative = async (axis, steps) => {
-  const endpoint = axis === 'ra' ? '/move_ra' : '/move_dec';
-  try {
-    await fetch(`http://192.168.4.1${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ steps })
-    });
-    setStatus('MOVING...');
-  } catch (error) {
-    setStatus('CONNECTION ERROR');
-  }
-};
+    const endpoint = axis === 'ra' ? '/move_ra' : '/move_dec';
+    try {
+      await fetch(`http://192.168.4.1${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ steps })
+      });
+      setStatus('MOVING...');
+    } catch (error) {
+      setStatus('CONNECTION ERROR');
+    }
+  };
 
   return (
     <div style={{
       ...ui.container,
       background: theme.bg,
-      color: theme.text
+      color: theme.text,
+      filter: nightMode ? 'sepia(100%) saturate(300%) hue-rotate(-50deg)' : 'none'
     }}>
       <div style={ui.header}>
-        <div>
-          <h1 style={{...ui.title, color: theme.accent}}>🔭 VEILED COSMOS</h1>
-          <p style={ui.subtitle}>Control Your Telescope to the Stars</p>
+        <h1 style={{...ui.title, color: theme.accent}}>🔭 VEILED COSMOS</h1>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{
+            ...ui.statusBox,
+            background: status === 'TRACKING' ? '#004400' : theme.accent,
+            borderRadius: theme.radius
+          }}>
+            {status}
+          </div>
+          <button onClick={() => setSidebarVisible(!sidebarVisible)} style={{ background: 'none', border: 'none', color: theme.accent, fontSize: '1.5rem', cursor: 'pointer', padding: '8px' }}>☰</button>
         </div>
-        <div style={{
-          ...ui.statusBox, 
-          background: status === 'TRACKING' ? '#00aa00' : (isSlewing ? '#ffaa00' : theme.accent)
-        }}>
-          <span style={ui.statusDot}></span>
-          {status}
-        </div>
-        <button onClick={() => setSidebarVisible(!sidebarVisible)} style={{ background: 'none', border: 'none', color: theme.accent, fontSize: '1.5rem', cursor: 'pointer', padding: '8px', marginLeft: '8px' }}>☰</button>
       </div>
 
       {showIntro && (
@@ -532,90 +512,69 @@ const displayList = useMemo(() => {
         </div>
       )}
 
-<div style={{...ui.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
+      <div style={{...ui.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
         <div style={ui.controls}>
-          {!kidsMode && (
-            <div style={ui.searchWrapper}>
-              <span style={ui.searchIcon}>🔍</span>
-              <input 
-                style={{...ui.search, background: theme.card, color: theme.text, borderColor: theme.border}} 
-                placeholder="Search stars, nebulae, planets..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-          )}
-          
-         <div style={kidsMode ? ui.kidsGrid : ui.scrollGrid}>
-  {displayList.map(obj => {
-    // Determine if we are in kids mode for this specific render
-    if (kidsMode) {
-      return (
-        <div 
-          key={`${obj.name}-${obj.ra}`} 
-          style={{ ...ui.kidsCard, background: theme.card, borderColor: theme.accent }}
-          onClick={() => sendCommand(obj)}
-        >
-<div style={ui.kidsIconContainer}>
-  {obj.img ? (
-    <img 
-      src={obj.img} 
-      style={ui.kidsPlanetImage} 
-      alt={obj.name} 
-      onError={(e) => e.target.style.display = 'none'} // Safety fallback
-    />
-  ) : (
-    <span style={ui.kidsIconText}>🌌</span>
-  )}
-</div>
-          <div style={ui.kidsCardName}>{obj.name}</div>
-          <div style={ui.kidsCardCommon}>{obj.common}</div>
+          <input 
+            style={{...ui.search, background: theme.card, color: theme.text, borderRadius: theme.radius, borderColor: theme.border}} 
+            placeholder="Search stars, nebulae, planets..." 
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <div style={ui.scrollGrid}>
+            {displayList.map(obj => (
+              <button 
+                key={`${obj.name}-${obj.ra || obj.id}`}
+                onClick={() => sendCommand(obj)}
+                style={{
+                  ...ui.cardButton,
+                  background: theme.card,
+                  borderColor: theme.border,
+                  color: theme.text,
+                  borderRadius: theme.radius
+                }}
+              >
+                {obj.img ? (
+                  <img src={obj.img} style={ui.objectImage} alt={obj.name} />
+                ) : (
+                  <span style={ui.fallbackIcon}>{obj.isStar ? '⭐' : '🌌'}</span>
+                )}
+                <div style={ui.cardContent}>
+                  <div style={ui.cardName}>{obj.name}</div>
+                  <div style={ui.cardCommon}>{obj.common || (obj.isStar ? 'Star' : 'Deep Sky Object')}</div>
+                </div>
+                <div style={ui.cardAction}>SLEW 🔭</div>
+              </button>
+            ))}
+          </div>
         </div>
-      );
-    }
-
-    // Standard / Advanced Mode Card
-    return (
-      <div 
-        key={`${obj.name}-${obj.ra}`} 
-        style={{
-          ...ui.card, 
-          background: theme.card,
-          borderColor: theme.border,
-          color: theme.text
-        }}
-        onClick={() => sendCommand(obj)}
-      >
-        <div style={ui.cardIcon}>
-          {obj.id !== undefined ? (
-            <img src={obj.img} style={ui.planetImage} alt={obj.name} />
-          ) : (
-            <span style={{ fontSize: '1.5rem' }}>{obj.isStar ? '⭐' : '🌌'}</span>
-          )}
-        </div>
-
-        <div style={ui.cardTextContainer}>
-          <div style={ui.cardName}>{obj.name}</div>
-          <div style={ui.cardCommon}>{obj.common}</div>
-        </div>
-      </div>
-    );
-  })}
-</div>
-</div>
 
         {sidebarVisible && <div style={ui.sidebar}>
+          {kidsMode && (
+            <div style={{...ui.calibBox, background: theme.accent, marginBottom: '15px', borderRadius: theme.radius}}>
+              <h3 style={{margin: '0 0 10px 0', color: '#000'}}>📅 Season Select</h3>
+              <button 
+                style={{...ui.actionBtn, background: '#fff', color: '#000', borderRadius: theme.radius}}
+                onClick={() => setIsSummer(!isSummer)}
+              >
+                <span style={ui.btnIcon}>{isSummer ? '☀️' : '❄️'}</span>
+                SWITCH TO {isSummer ? 'WINTER' : 'SUMMER'}
+              </button>
+              <p style={{fontSize: '0.8rem', color: '#000', marginTop: '5px', fontWeight: 'bold'}}>
+                Currently showing: {isSummer ? 'Summer Stars' : 'Winter Stars'}
+              </p>
+            </div>
+          )}
+
           <div style={ui.buttonGroup}>
             <button 
-              style={{...ui.actionBtn, background: kidsMode ? '#2196F3' : '#333'}}
+              style={{...ui.actionBtn, background: kidsMode ? '#2196F3' : '#333', borderRadius: theme.radius}}
               onClick={() => setKidsMode(!kidsMode)}
             >
               <span style={ui.btnIcon}>{kidsMode ? '🚀' : '🧒'}</span>
               {kidsMode ? 'ADVANCED MODE' : 'KIDS MODE'}
             </button>
-            
             <button 
-              style={{...ui.actionBtn, background: nightMode ? '#7a1f1f' : '#333'}}
+              style={{...ui.actionBtn, background: nightMode ? '#7a1f1f' : '#333', borderRadius: theme.radius}}
               onClick={() => setNightMode(!nightMode)}
             >
               <span style={ui.btnIcon}>{nightMode ? '☀️' : '🌙'}</span>
@@ -624,32 +583,31 @@ const displayList = useMemo(() => {
           </div>
 
           <button 
-            style={{...ui.stopBtn}}
+            style={{...ui.stopBtn, borderRadius: theme.radius}}
             onClick={() => sendCommand(null, 'stop')}
           >
             <span style={ui.btnIcon}>🛑</span>
             STOP MOUNT
           </button>
-         
 
-          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border}}>
-  <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>🕹️ Manual Fine Moves</h3>
-  <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
-    <button style={ui.smallBtn} onClick={() => moveRelative('ra', 200)}>RA +200</button>
-    <button style={ui.smallBtn} onClick={() => moveRelative('ra', -200)}>RA -200</button>
-    <button style={ui.smallBtn} onClick={() => moveRelative('dec', 200)}>DEC +200</button>
-    <button style={ui.smallBtn} onClick={() => moveRelative('dec', -200)}>DEC -200</button>
-  </div>
-  <div style={{display: 'flex', gap: '8px', marginTop: '8px'}}>
-    <button style={ui.smallBtn} onClick={() => moveRelative('ra', 20)}>RA +20</button>
-    <button style={ui.smallBtn} onClick={() => moveRelative('ra', -20)}>RA -20</button>
-    <button style={ui.smallBtn} onClick={() => moveRelative('dec', 20)}>DEC +20</button>
-    <button style={ui.smallBtn} onClick={() => moveRelative('dec', -20)}>DEC -20</button>
-  </div>
-</div>
+          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
+            <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>🕹️ Manual Fine Moves</h3>
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', 200)}>RA +200</button>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', -200)}>RA -200</button>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', 200)}>DEC +200</button>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', -200)}>DEC -200</button>
+            </div>
+            <div style={{display: 'flex', gap: '8px', marginTop: '8px'}}>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', 20)}>RA +20</button>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', -20)}>RA -20</button>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', 20)}>DEC +20</button>
+              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', -20)}>DEC -20</button>
+            </div>
+          </div>
 
           <button 
-            style={{...ui.actionBtn, background: '#333'}}
+            style={{...ui.actionBtn, background: '#333', borderRadius: theme.radius}}
             onClick={() => sendCommand(null, 'home')}
           >
             <span style={ui.btnIcon}>🏠</span>
@@ -657,35 +615,31 @@ const displayList = useMemo(() => {
           </button>
 
           <button 
-            style={{...ui.actionBtn, background: tracking ? '#ffaa00' : '#333'}}
+            style={{...ui.actionBtn, background: tracking ? '#ffaa00' : '#333', borderRadius: theme.radius}}
             onClick={toggleTracking}
           >
             <span style={ui.btnIcon}>{tracking ? '⏸️' : '▶️'}</span>
             {tracking ? 'DISABLE TRACKING' : 'ENABLE TRACKING'}
           </button>
 
-          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border}}>
+          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
             <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>🧭 Star Calibration</h3>
             <p style={ui.calibText}>Align the mount to a bright star, choose it below, then save two different star references for better accuracy.</p>
             <select
               value={selectedCalStar}
               onChange={e => setSelectedCalStar(e.target.value)}
-              style={{...ui.select, background: theme.card, color: theme.text, borderColor: theme.border}}
+              style={{...ui.select, background: theme.card, color: theme.text, borderColor: theme.border, borderRadius: theme.radius}}
             >
               {BRIGHT_STARS.map(star => (
                 <option key={star.name} value={star.name}>{star.name}</option>
               ))}
             </select>
-            <button style={ui.calibBtn} onClick={saveCalibrationReference}>Save star reference</button>
-            <button style={ui.calibBtnSecondary} onClick={setStarAsHome}>Set selected star as home</button>
-            <button style={ui.calibBtnSecondary} onClick={() => setShowCalGuide(true)}>Show Calibration Guide</button>
-       
+            <button style={{...ui.calibBtn, borderRadius: theme.radius}} onClick={saveCalibrationReference}>Save star reference</button>
+            <button style={{...ui.calibBtnSecondary, borderRadius: theme.radius}} onClick={setStarAsHome}>Set selected star as home</button>
+            <button style={{...ui.calibBtnSecondary, borderRadius: theme.radius}} onClick={() => setShowCalGuide(true)}>Show Calibration Guide</button>
             <div style={ui.calibRow}>Reference 1: {starRef1 ? starRef1.name : 'None'}</div>
-            <div style={ui.calibRow}>Reference 2: {starRef2 ? starRef2.name : 'None'}</div>   
-            <div></div>  
-             <button style={ui.calibBtnSecondary} onClick={resetCalibration}>
-  Reset calibration
-</button>
+            <div style={ui.calibRow}>Reference 2: {starRef2 ? starRef2.name : 'None'}</div>
+            <button style={{...ui.calibBtnSecondary, borderRadius: theme.radius}} onClick={resetCalibration}>Reset calibration</button>
             {calibrationData && (
               <div style={ui.calibRow}>
                 RA scale: {calibrationData.raScale.toFixed(1)}, DEC scale: {calibrationData.decScale.toFixed(1)}
@@ -694,7 +648,7 @@ const displayList = useMemo(() => {
             <div style={ui.calibMessage}>{calibrationMessage}</div>
           </div>
 
-          <div style={{...ui.infoBox, background: theme.card, borderColor: theme.border}}>
+          <div style={{...ui.infoBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
             <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>⚙️ Calibration</h3>
             <ol style={ui.infoList}>
               <li>Level Mount</li>
@@ -703,10 +657,8 @@ const displayList = useMemo(() => {
             </ol>
             <div style={ui.infoFooter}>
               <span>📍 Current Location</span>
-<span>
-  {location.lat !== null ? location.lat.toFixed(2) : "?"}°,
-  {location.lon !== null ? location.lon.toFixed(2) : "?"}°
-</span>            </div>
+              <span>{location.lat !== null ? location.lat.toFixed(2) : "?"}°, {location.lon !== null ? location.lon.toFixed(2) : "?"}°</span>
+            </div>
           </div>
         </div>}
       </div>
@@ -731,176 +683,95 @@ const ui = {
     flexWrap: 'wrap',
     gap: '16px'
   },
-  smallBtn: {
-  padding: '8px 12px',
-  borderRadius: '8px',
-  border: 'none',
-  background: '#444',
-  color: '#fff',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-  fontSize: '0.8rem',
-  transition: '0.1s',
-},
   title: { 
     fontSize: 'clamp(1.5rem, 5vw, 2.2rem)', 
     letterSpacing: '2px', 
     margin: 0,
     fontWeight: 700
   },
-  subtitle: {
-    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
-    opacity: 0.7,
-    marginTop: '4px'
-  },
   statusBox: { 
-    color: '#000', 
+    color: '#fff', 
     padding: '8px 16px', 
-    borderRadius: '20px', 
     fontWeight: 'bold',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
     fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)'
-  },
-  statusDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    background: '#00ff00',
-    display: 'inline-block',
-    animation: 'pulse 2s infinite'
   },
   mainGrid: { 
     display: 'grid', 
-    gridTemplateColumns: '1fr 300px', 
     gap: 'clamp(16px, 4vw, 24px)', 
-    flex: 1,
-    '@media (max-width: 768px)': {
-      gridTemplateColumns: '1fr'
-    }
+    flex: 1
   },
   controls: { 
     display: 'flex', 
     flexDirection: 'column', 
     overflow: 'hidden',
-    minWidth: 0
-  },
-  searchWrapper: {
-    position: 'relative',
-    marginBottom: '20px'
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: '12px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    fontSize: '1.1rem',
-    opacity: 0.6
+    minWidth: 0,
+    gap: '20px'
   },
   search: { 
     width: '100%', 
-    padding: '12px 12px 12px 40px', 
-    borderRadius: '12px', 
+    padding: '12px 16px', 
     border: '1px solid',
     fontSize: 'clamp(0.9rem, 3vw, 1rem)',
-    outline: 'none',
-    transition: 'all 0.2s'
+    outline: 'none'
   },
-scrollGrid: { 
+  scrollGrid: { 
     display: 'grid', 
-    // Increased min-width from 140px to 220px to prevent text overflow
-    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
     gap: '12px', 
     overflowY: 'auto',
+    maxHeight: 'calc(100vh - 200px)',
     padding: '4px'
   },
-  card: { 
-    borderRadius: '12px', 
-    padding: '12px', 
+  cardButton: {
     display: 'flex',
-    flexDirection: 'row', // Align icon and text side-by-side
     alignItems: 'center',
-    textAlign: 'left',
-    cursor: 'pointer', 
+    gap: '12px',
+    padding: '12px',
     border: '1px solid',
-    transition: 'transform 0.1s ease',
-    minHeight: '70px' // Ensures consistency even with 1 line of text
-  },
-  cardIcon: {
-    marginRight: '12px',
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '40px'
-  },
-  cardTextContainer: {
-    flexGrow: 1,
-    minWidth: 0, // Critical: allows text to truncate or wrap instead of pushing card width
-    overflow: 'hidden'
-  },
-  cardName: { 
-    fontSize: '1rem', 
-    fontWeight: 'bold',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis' // Adds "..." if name is too long
-  },
-  cardCommon: { 
-    fontSize: '0.75rem', 
-    opacity: 0.8,
-    lineHeight: '1.2',
-    wordWrap: 'break-word' // Allows constellation names/magnitudes to wrap to next line
-  },
-
-  // KIDS MODE GRID & CARDS
-  kidsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: '24px',
-    padding: '10px'
-  },
-  kidsCard: {
-    borderRadius: '32px',
-    padding: '30px',
-    textAlign: 'center',
     cursor: 'pointer',
-    border: '4px solid',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-    transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+    textAlign: 'left',
+    transition: 'transform 0.1s ease',
+    fontFamily: 'inherit'
   },
-  kidsIconContainer: { marginBottom: '15px' },
-  kidsIconText: { fontSize: '4rem' },
-kidsPlanetImage: {
-    width: 'clamp(100px, 25vw, 150px)', // Made larger for Kids Mode
-    height: 'clamp(100px, 25vw, 150px)',
-    objectFit: 'contain',
-    borderRadius: '50%', // Makes square galaxy photos look like round celestial objects
-    filter: 'drop-shadow(0px 0px 15px rgba(255,255,255,0.2))', // Subtle glow
-    border: '2px solid rgba(255,255,255,0.1)' // Soft outer ring
-  },
-  planetImage: { // Advanced Mode
-    width: '45px',
-    height: '45px',
+  objectImage: {
+    width: '48px',
+    height: '48px',
     objectFit: 'contain',
     borderRadius: '50%',
-    marginRight: '10px'
+    flexShrink: 0
   },
-  kidsCardName: { 
-    fontSize: '1.8rem', 
-    fontWeight: '900',
-    marginBottom: '8px',
-    letterSpacing: '1px'
+  fallbackIcon: {
+    fontSize: '2rem',
+    width: '48px',
+    textAlign: 'center',
+    flexShrink: 0
   },
-  kidsCardCommon: { 
-    fontSize: '1.1rem', 
-    fontWeight: '500',
-    opacity: 0.9,    
+  cardContent: {
+    flex: 1,
+    minWidth: 0
+  },
+  cardName: {
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  cardCommon: {
+    fontSize: '0.75rem',
+    opacity: 0.8,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  cardAction: {
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    background: '#3b82f6',
+    color: 'white',
+    padding: '6px 10px',
+    borderRadius: '20px',
+    whiteSpace: 'nowrap'
   },
   sidebar: { 
     display: 'flex', 
@@ -914,7 +785,6 @@ kidsPlanetImage: {
   },
   actionBtn: { 
     padding: 'clamp(12px, 3vw, 15px)', 
-    borderRadius: '12px', 
     border: 'none', 
     color: '#fff', 
     fontWeight: 'bold', 
@@ -923,15 +793,10 @@ kidsPlanetImage: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
-    transition: 'transform 0.1s, opacity 0.2s',
-    ':active': {
-      transform: 'scale(0.98)'
-    }
+    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)'
   },
   stopBtn: {
     padding: 'clamp(12px, 3vw, 15px)',
-    borderRadius: '12px',
     border: '2px solid #ff4444',
     background: '#1a0000',
     color: '#ff4444',
@@ -941,20 +806,27 @@ kidsPlanetImage: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
-    transition: 'all 0.2s'
+    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)'
   },
   btnIcon: {
     fontSize: '1.1rem'
   },
+  smallBtn: {
+    padding: '8px 12px',
+    border: 'none',
+    background: '#444',
+    color: '#fff',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    fontSize: '0.8rem'
+  },
   infoBox: { 
     padding: 'clamp(16px, 4vw, 20px)', 
-    borderRadius: '16px', 
     border: '1px solid',
     marginTop: 'auto'
   },
   infoList: {
-    margin: '0',
+    margin: 0,
     paddingLeft: '20px',
     fontSize: 'clamp(0.8rem, 2.5vw, 0.85rem)',
     lineHeight: '1.6'
@@ -969,7 +841,6 @@ kidsPlanetImage: {
     opacity: 0.7
   },
   calibBox: {
-    borderRadius: '18px',
     padding: '16px',
     display: 'flex',
     flexDirection: 'column',
@@ -985,7 +856,6 @@ kidsPlanetImage: {
   select: {
     width: '100%',
     padding: '10px 12px',
-    borderRadius: '12px',
     border: '1px solid',
     fontSize: '0.95rem',
     outline: 'none'
@@ -993,7 +863,6 @@ kidsPlanetImage: {
   calibBtn: {
     width: '100%',
     padding: '12px',
-    borderRadius: '12px',
     border: 'none',
     background: '#2196F3',
     color: '#fff',
@@ -1003,7 +872,6 @@ kidsPlanetImage: {
   calibBtnSecondary: {
     width: '100%',
     padding: '12px',
-    borderRadius: '12px',
     border: '1px solid rgba(255,255,255,0.12)',
     background: '#222',
     color: '#fff',
@@ -1079,17 +947,16 @@ kidsPlanetImage: {
   }
 };
 
-// Add this to your global CSS or component
+// Add global animation for status dot (if needed elsewhere, but we removed the dot)
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
-  @media (max-width: 768px) {
-    .main-grid {
-      grid-template-columns: 1fr;
-    }
+  button:hover {
+    opacity: 0.9;
+    transform: scale(0.98);
   }
 `;
 document.head.appendChild(styleSheet);
