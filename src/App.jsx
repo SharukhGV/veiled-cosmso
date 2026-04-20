@@ -8,14 +8,22 @@ import jupiterImg from './assets/jupiter.png';
 import saturnImg from './assets/saturn.png';
 import uranusImg from './assets/uranus.png';
 import neptuneImg from './assets/neptune.png';
+import moon from './assets/moon.png';
+import andromedaImg from './assets/andromeda.png';
+import orionImg from './assets/orionnebula.png';
+import pleiadesImg from './assets/pleiades.png';
+import m13Img from './assets/m13starcluster.png';
+import m51Img from './assets/m51whirpool.jpg';
+// import starData from '../public/starData.json';
+import { useMemo } from 'react';
 
 const MESSIER_DATA = [
 
-  { "name": "M31", "common": "Andromeda Galaxy", "ra": 0.7123, "dec": 41.2687 },
-  { "name": "M42", "common": "Orion Nebula", "ra": 5.5881, "dec": -5.3911 },
-  { "name": "M45", "common": "Pleiades", "ra": 3.7836, "dec": 24.1167 },
-  { "name": "M13", "common": "Hercules Cluster", "ra": 16.6949, "dec": 36.4613 },
-  { "name": "M51", "common": "Whirlpool Galaxy", "ra": 13.4981, "dec": 47.1953 },
+  { "name": "M31", "common": "Andromeda Galaxy", "ra": 0.7123, "dec": 41.2687, img: andromedaImg },
+  { "name": "M42", "common": "Orion Nebula", "ra": 5.5881, "dec": -5.3911, img: orionImg },
+  { "name": "M45", "common": "Pleiades", "ra": 3.7836, "dec": 24.1167, img: pleiadesImg },
+  { "name": "M13", "common": "Hercules Cluster", "ra": 16.6949, "dec": 36.4613, img: m13Img },
+  { "name": "M51", "common": "Whirlpool Galaxy", "ra": 13.4981, "dec": 47.1953, img: m51Img },
   { "name": "M57", "common": "Ring Nebula", "ra": 18.8921, "dec": 33.0292 },
   { "name": "M27", "common": "Dumbbell Nebula", "ra": 19.9935, "dec": 22.7211 },
   { "name": "M8", "common": "Lagoon Nebula", "ra": 18.06, "dec": -24.38 },
@@ -43,7 +51,7 @@ const MESSIER_DATA = [
   { "name": "M15", "common": "Pegasus Cluster", "ra": 21.50, "dec": 12.17 }
 ]
 const PLANETS = [
-  { id: Body.Moon, name: "Moon", img: "🌕", isEmoji: true }, // Keeping emoji for moon
+  { id: Body.Moon, name: "Moon", img: moon, isEmoji: true }, // Keeping emoji for moon
   { id: Body.Mercury, name: "Mercury", img: mercuryImg },
   { id: Body.Venus, name: "Venus", img: venusImg },
   { id: Body.Mars, name: "Mars", img: marsImg },
@@ -54,18 +62,17 @@ const PLANETS = [
 ];
 // Curated list for Kids Mode (Top 10 visually impressive objects)
 const KIDS_PICKS = [
-  { id: Body.Moon, name: "Moon", img: "🌕", isEmoji: true, common: "Earth's Neighbor" },
+  { id: Body.Moon, name: "Moon", img: moon, common: "Earth's Neighbor" },
   { id: Body.Jupiter, name: "Jupiter", img: jupiterImg, common: "King of Planets" },
   { id: Body.Saturn, name: "Saturn", img: saturnImg, common: "Ringed Giant" },
   { id: Body.Mars, name: "Mars", img: marsImg, common: "The Red Planet" },
   { id: Body.Venus, name: "Venus", img: venusImg, common: "Morning Star" },
-  { name: "M45", common: "The Pleiades", ra: 3.7836, dec: 24.1167, img: "✨", isEmoji: true },
-  { name: "M31", common: "Andromeda", ra: 0.7123, dec: 41.2687, img: "🌀", isEmoji: true },
-  { name: "M42", common: "Orion Nebula", ra: 5.5881, dec: -5.3911, img: "☁️", isEmoji: true },
-  { name: "M13", common: "Star Cluster", ra: 16.6949, dec: 36.4613, img: "🎆", isEmoji: true },
-  { name: "M51", common: "Whirlpool", ra: 13.4981, dec: 47.1953, img: "🌪️", isEmoji: true }
+  { name: "M45", common: "The Pleiades", ra: 3.7836, dec: 24.1167, img: pleiadesImg },
+  { name: "M31", common: "Andromeda", ra: 0.7123, dec: 41.2687, img: andromedaImg },
+  { name: "M42", common: "Orion Nebula", ra: 5.5881, dec: -5.3911, img: orionImg },
+  { name: "M13", common: "Star Cluster", ra: 16.6949, dec: 36.4613, img: m13Img },
+  { name: "M51", common: "Whirlpool", ra: 13.4981, dec: 47.1953, img: m51Img }
 ];
-
 export default function TelescopeApp() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('READY');
@@ -84,6 +91,29 @@ export default function TelescopeApp() {
   const [calibrationMessage, setCalibrationMessage] = useState('');
   const [tracking, setTracking] = useState(false);
   const [mountPosition, setMountPosition] = useState({ ra: 0, dec: 0 });
+const [extraStarData, setExtraStarData] = useState([]);
+
+
+// Fetch star data on mount
+  useEffect(() => {
+    fetch('/starData.json') // Ensure the path is correct for your build setup
+      .then(res => res.json())
+      .then(data => {
+        // Map the JSON structure to match your app's object format
+        const formattedStars = data
+          .filter(star => star.proper) // Only include stars with names for searching
+          .map(star => ({
+            name: star.proper,
+            common: `${star.con || ''} Star (Mag: ${star.mag})`,
+            ra: star.ra,
+            dec: star.dec,
+            isStar: true // flag to identify source if needed
+          }));
+        setExtraStarData(formattedStars);
+      })
+      .catch(err => console.error("Error loading starData.json:", err));
+  }, []);
+
 
   useEffect(() => {
     if (!localStorage.getItem('veiledCosmosSeenIntro')) {
@@ -323,10 +353,34 @@ useEffect(() => {
     }
   };
 
-  const displayList = kidsMode ? KIDS_PICKS : [...PLANETS, ...MESSIER_DATA].filter(o => 
-    o.name.toLowerCase().includes(search.toLowerCase()) || 
-    (o.common && o.common.toLowerCase().includes(search.toLowerCase()))
-  );
+// UPDATED: Filter logic to include starData.json entries
+// Inside your TelescopeApp component
+const displayList = useMemo(() => {
+  // 1. Return the curated list immediately if in Kids Mode
+  if (kidsMode) return KIDS_PICKS;
+
+  // 2. Optimization: If search is empty, don't process the massive star list
+  // Just show Planets and Messier objects
+  if (!search.trim()) {
+    return [...PLANETS, ...MESSIER_DATA];
+  }
+
+  const searchTerm = search.toLowerCase();
+  
+  // 3. Combine your datasets
+  const combinedSource = [...PLANETS, ...MESSIER_DATA, ...extraStarData];
+
+  // 4. Filter and Slice
+  // .slice(0, 50) is CRITICAL for performance. 
+  // The browser cannot render 10,000 search results at once.
+  return combinedSource
+    .filter(obj => 
+      obj.name.toLowerCase().includes(searchTerm) || 
+      (obj.common && obj.common.toLowerCase().includes(searchTerm))
+    )
+    .slice(0, 50); 
+
+}, [search, kidsMode, extraStarData]); // Only re-run if these change
 
   const theme = {
     bg: nightMode ? '#0a0a0a' : '#050505',
@@ -478,52 +532,77 @@ useEffect(() => {
         </div>
       )}
 
-      <div style={{...ui.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
+<div style={{...ui.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
         <div style={ui.controls}>
           {!kidsMode && (
             <div style={ui.searchWrapper}>
               <span style={ui.searchIcon}>🔍</span>
               <input 
                 style={{...ui.search, background: theme.card, color: theme.text, borderColor: theme.border}} 
-                placeholder="Search galaxies, nebulae, planets..." 
+                placeholder="Search stars, nebulae, planets..." 
+                value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
           )}
           
-          <div style={kidsMode ? ui.kidsGrid : ui.scrollGrid}>
-            {displayList.map(obj => (
-              <div 
-                key={obj.name} 
-                style={{
-                  ...(kidsMode ? ui.kidsCard : ui.card), 
-                  background: theme.card,
-                  borderColor: kidsMode ? theme.accent : theme.border,
-                  transition: 'transform 0.2s, box-shadow 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-                onClick={() => sendCommand(obj)}
-              >
-                <div style={kidsMode ? ui.kidsIconContainer : ui.iconContainer}>
-                  {obj.isEmoji || !obj.img ? (
-                    <span style={kidsMode ? ui.kidsIconText : ui.iconText}>{obj.img || "🔭"}</span>
-                  ) : (
-                    <img src={obj.img} alt={obj.name} style={kidsMode ? ui.kidsPlanetImage : ui.planetImage} />
-                  )}
-                </div>
-                <div style={kidsMode ? ui.kidsCardName : ui.cardName}>{obj.name}</div>
-                <div style={kidsMode ? ui.kidsCardCommon : ui.cardCommon}>{obj.common || (obj.id ? 'Planet' : 'Deep Space Object')}</div>
-              </div>
-            ))}
-          </div>
+         <div style={kidsMode ? ui.kidsGrid : ui.scrollGrid}>
+  {displayList.map(obj => {
+    // Determine if we are in kids mode for this specific render
+    if (kidsMode) {
+      return (
+        <div 
+          key={`${obj.name}-${obj.ra}`} 
+          style={{ ...ui.kidsCard, background: theme.card, borderColor: theme.accent }}
+          onClick={() => sendCommand(obj)}
+        >
+<div style={ui.kidsIconContainer}>
+  {obj.img ? (
+    <img 
+      src={obj.img} 
+      style={ui.kidsPlanetImage} 
+      alt={obj.name} 
+      onError={(e) => e.target.style.display = 'none'} // Safety fallback
+    />
+  ) : (
+    <span style={ui.kidsIconText}>🌌</span>
+  )}
+</div>
+          <div style={ui.kidsCardName}>{obj.name}</div>
+          <div style={ui.kidsCardCommon}>{obj.common}</div>
         </div>
+      );
+    }
+
+    // Standard / Advanced Mode Card
+    return (
+      <div 
+        key={`${obj.name}-${obj.ra}`} 
+        style={{
+          ...ui.card, 
+          background: theme.card,
+          borderColor: theme.border,
+          color: theme.text
+        }}
+        onClick={() => sendCommand(obj)}
+      >
+        <div style={ui.cardIcon}>
+          {obj.id !== undefined ? (
+            <img src={obj.img} style={ui.planetImage} alt={obj.name} />
+          ) : (
+            <span style={{ fontSize: '1.5rem' }}>{obj.isStar ? '⭐' : '🌌'}</span>
+          )}
+        </div>
+
+        <div style={ui.cardTextContainer}>
+          <div style={ui.cardName}>{obj.name}</div>
+          <div style={ui.cardCommon}>{obj.common}</div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+</div>
 
         {sidebarVisible && <div style={ui.sidebar}>
           <div style={ui.buttonGroup}>
@@ -728,82 +807,100 @@ const ui = {
     outline: 'none',
     transition: 'all 0.2s'
   },
-  scrollGrid: { 
+scrollGrid: { 
     display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
-    gap: 'clamp(12px, 3vw, 16px)', 
+    // Increased min-width from 140px to 220px to prevent text overflow
+    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+    gap: '12px', 
     overflowY: 'auto',
     padding: '4px'
   },
   card: { 
-    borderRadius: '16px', 
-    padding: 'clamp(16px, 4vw, 20px)', 
-    textAlign: 'center', 
+    borderRadius: '12px', 
+    padding: '12px', 
+    display: 'flex',
+    flexDirection: 'row', // Align icon and text side-by-side
+    alignItems: 'center',
+    textAlign: 'left',
     cursor: 'pointer', 
     border: '1px solid',
-    transition: 'all 0.2s ease'
+    transition: 'transform 0.1s ease',
+    minHeight: '70px' // Ensures consistency even with 1 line of text
   },
-  iconContainer: {
-    height: '60px',
+  cardIcon: {
+    marginRight: '12px',
+    flexShrink: 0,
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: '10px'
+    justifyContent: 'center',
+    width: '40px'
   },
-  iconText: {
-    fontSize: 'clamp(2rem, 6vw, 2.5rem)'
-  },
-  planetImage: {
-    width: 'clamp(40px, 8vw, 50px)',
-    height: 'clamp(40px, 8vw, 50px)',
-    objectFit: 'contain',
-    filter: 'drop-shadow(0px 0px 8px rgba(255,255,255,0.2))' 
+  cardTextContainer: {
+    flexGrow: 1,
+    minWidth: 0, // Critical: allows text to truncate or wrap instead of pushing card width
+    overflow: 'hidden'
   },
   cardName: { 
-    fontSize: 'clamp(0.9rem, 3vw, 1.1rem)', 
+    fontSize: '1rem', 
     fontWeight: 'bold',
-    marginBottom: '4px'
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis' // Adds "..." if name is too long
   },
   cardCommon: { 
-    fontSize: 'clamp(0.65rem, 2vw, 0.7rem)', 
-    opacity: 0.7 
+    fontSize: '0.75rem', 
+    opacity: 0.8,
+    lineHeight: '1.2',
+    wordWrap: 'break-word' // Allows constellation names/magnitudes to wrap to next line
   },
+
+  // KIDS MODE GRID & CARDS
   kidsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: 'clamp(16px, 4vw, 24px)',
-    padding: '4px'
+    gap: '24px',
+    padding: '10px'
   },
   kidsCard: {
-    borderRadius: '24px',
-    padding: 'clamp(20px, 5vw, 30px)',
+    borderRadius: '32px',
+    padding: '30px',
     textAlign: 'center',
     cursor: 'pointer',
-    border: '3px solid',
+    border: '4px solid',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'all 0.2s ease'
+    boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+    transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
   },
-  kidsIconContainer: { marginBottom: 'clamp(12px, 3vw, 20px)' },
-  kidsIconText: { fontSize: 'clamp(3rem, 10vw, 5rem)' },
-  kidsPlanetImage: {
-    width: 'clamp(80px, 20vw, 120px)',
-    height: 'clamp(80px, 20vw, 120px)',
+  kidsIconContainer: { marginBottom: '15px' },
+  kidsIconText: { fontSize: '4rem' },
+kidsPlanetImage: {
+    width: 'clamp(100px, 25vw, 150px)', // Made larger for Kids Mode
+    height: 'clamp(100px, 25vw, 150px)',
     objectFit: 'contain',
-    filter: 'drop-shadow(0px 0px 15px rgba(255,255,255,0.4))'
+    borderRadius: '50%', // Makes square galaxy photos look like round celestial objects
+    filter: 'drop-shadow(0px 0px 15px rgba(255,255,255,0.2))', // Subtle glow
+    border: '2px solid rgba(255,255,255,0.1)' // Soft outer ring
+  },
+  planetImage: { // Advanced Mode
+    width: '45px',
+    height: '45px',
+    objectFit: 'contain',
+    borderRadius: '50%',
+    marginRight: '10px'
   },
   kidsCardName: { 
-    fontSize: 'clamp(1.2rem, 4vw, 2rem)', 
-    fontWeight: '900', 
-    textTransform: 'uppercase',
-    marginBottom: '4px'
+    fontSize: '1.8rem', 
+    fontWeight: '900',
+    marginBottom: '8px',
+    letterSpacing: '1px'
   },
   kidsCardCommon: { 
-    fontSize: 'clamp(0.9rem, 3vw, 1.2rem)', 
-    opacity: 0.9, 
-    marginTop: '5px' 
+    fontSize: '1.1rem', 
+    fontWeight: '500',
+    opacity: 0.9,    
   },
   sidebar: { 
     display: 'flex', 

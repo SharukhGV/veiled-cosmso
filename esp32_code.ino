@@ -20,6 +20,13 @@ WebServer server(80);
 AccelStepper stepperRA(AccelStepper::DRIVER, RA_STEP_PIN, RA_DIR_PIN);
 AccelStepper stepperDEC(AccelStepper::DRIVER, DEC_STEP_PIN, DEC_DIR_PIN);
 
+// ================= BACKLASH =================
+const int RA_BACKLASH_STEPS = 150; 
+const int DEC_BACKLASH_STEPS = 150;
+
+int lastRaDir = 0;
+int lastDecDir = 0;
+
 // ================= MOUNT MODEL =================
 float raScale = 19200;      // steps per hour
 float decScale = 1280;      // steps per degree
@@ -38,7 +45,7 @@ unsigned long lastMoveTime = 0;
 
 // ================= FUNCTIONS =================
 void updateSiderealRate() {
-  siderealSpeed = raScale / 3600.0;   // correct: steps per hour → steps per second
+  siderealSpeed = raScale / 3600.0;   // steps per hour → steps per second
 }
 
 void setRAScale(float newRAScale) {
@@ -47,6 +54,20 @@ void setRAScale(float newRAScale) {
     updateSiderealRate();
     stepperRA.setSpeed(siderealSpeed);
   }
+}
+
+// Backlash compensation – MUST be called before moveTo()
+void applyBacklash(AccelStepper &stepper, int &lastDir, long targetPos, int backlashAmount) {
+  long currentPos = stepper.currentPosition();
+  if (targetPos == currentPos) return;
+
+  int newDir = (targetPos > currentPos) ? 1 : -1;
+
+  if (lastDir != 0 && newDir != lastDir) {
+    // Offset current position to "swallow" the gear slack
+    stepper.setCurrentPosition(currentPos - (newDir * backlashAmount));
+  }
+  lastDir = newDir;
 }
 
 // ================= SETUP =================
@@ -69,7 +90,7 @@ void setup() {
   Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());
 
-  // -------- CORS headers for all responses ----------
+  // -------- CORS & OPTIONS handler ----------
   server.onNotFound([]() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -113,11 +134,18 @@ void setup() {
     }
     float lha = doc["lha"];
     float dec = doc["dec"];
+
     long targetRA  = (long)(raScale * lha + raOffset);
     long targetDEC = (long)(decScale * dec + decOffset);
+
     tracking = false;
+
+    applyBacklash(stepperRA, lastRaDir, targetRA, RA_BACKLASH_STEPS);
+    applyBacklash(stepperDEC, lastDecDir, targetDEC, DEC_BACKLASH_STEPS);
+
     stepperRA.moveTo(targetRA);
     stepperDEC.moveTo(targetDEC);
+
     server.send(200, "application/json", "{\"status\":\"slewing\"}");
   });
 
@@ -134,54 +162,60 @@ void setup() {
       server.send(400, "application/json", "{\"error\":\"bad json\"}");
       return;
     }
-    tracking = doc["on"] | false;
+    tracking = doc["on"] | false;   // boolean OR works (false = 0)
     if (tracking) {
       updateSiderealRate();
+      lastRaDir = 1;  // ensure RA motor is "biting" in tracking direction
       stepperRA.setSpeed(siderealSpeed);
     }
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   });
 
   // -------- MOVE RA RELATIVE (POST) --------
-server.on("/move_ra", HTTP_POST, []() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"no body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, server.arg("plain"));
-  if (error || !doc["steps"].is<int>()) {
-    server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
-    return;
-  }
-  int steps = doc["steps"];
-  long current = stepperRA.currentPosition();
-  stepperRA.moveTo(current + steps);
-  tracking = false;   // stop tracking during manual move
-  server.send(200, "application/json", "{\"status\":\"moving_ra\"}");
-});
+  server.on("/move_ra", HTTP_POST, []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"error\":\"no body\"}");
+      return;
+    }
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, server.arg("plain"));
+    if (error || !doc["steps"].is<int>()) {
+      server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
+      return;
+    }
+    int steps = doc["steps"];
+    long current = stepperRA.currentPosition();
+    long target = current + steps;
 
-// -------- MOVE DEC RELATIVE (POST) --------
-// -------- MOVE DEC RELATIVE (POST) --------
-server.on("/move_dec", HTTP_POST, []() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"no body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, server.arg("plain"));
-  if (error || !doc["steps"].is<int>()) {
-    server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
-    return;
-  }
-  int steps = doc["steps"];
-  long current = stepperDEC.currentPosition();
-  stepperDEC.moveTo(current + steps);
-  tracking = false;   // stop tracking during manual move
-  server.send(200, "application/json", "{\"status\":\"moving_dec\"}");
-});
+    applyBacklash(stepperRA, lastRaDir, target, RA_BACKLASH_STEPS);
+    stepperRA.moveTo(target);
+    tracking = false;
+    server.send(200, "application/json", "{\"status\":\"moving_ra\"}");
+  });
+
+  // -------- MOVE DEC RELATIVE (POST) --------
+  server.on("/move_dec", HTTP_POST, []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    if (!server.hasArg("plain")) {
+      server.send(400, "application/json", "{\"error\":\"no body\"}");
+      return;
+    }
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, server.arg("plain"));
+    if (error || !doc["steps"].is<int>()) {
+      server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
+      return;
+    }
+    int steps = doc["steps"];
+    long current = stepperDEC.currentPosition();
+    long target = current + steps;
+
+    applyBacklash(stepperDEC, lastDecDir, target, DEC_BACKLASH_STEPS);
+    stepperDEC.moveTo(target);          // single moveTo – fixed duplicate
+    tracking = false;
+    server.send(200, "application/json", "{\"status\":\"moving_dec\"}");
+  });
 
   // -------- STOP (POST) --------
   server.on("/stop", HTTP_POST, []() {
@@ -259,7 +293,7 @@ server.on("/move_dec", HTTP_POST, []() {
 
 // ================= LOOP =================
 void loop() {
-  server.handleClient();   // handle incoming HTTP requests
+  server.handleClient();
   yield();
 
   bool moving = false;
