@@ -3,13 +3,13 @@
 #include <ArduinoJson.h>
 #include <AccelStepper.h>
 
-// ================= WIFI =================
-const char* ssid = "SkyViewPro_GoTo";
+// ================= WIFI CONFIG =================
+const char* ssid = "SkyViewPro_GoTo"; 
 const char* password = "astronomy-sky";
 
 WebServer server(80);
 
-// ================= PINS =================
+// ================= PIN DEFINITIONS =================
 #define RA_STEP_PIN 12
 #define RA_DIR_PIN  14
 #define DEC_STEP_PIN 27
@@ -20,63 +20,93 @@ WebServer server(80);
 AccelStepper stepperRA(AccelStepper::DRIVER, RA_STEP_PIN, RA_DIR_PIN);
 AccelStepper stepperDEC(AccelStepper::DRIVER, DEC_STEP_PIN, DEC_DIR_PIN);
 
-// ================= BACKLASH =================
+// ================= BACKLASH CONFIG =================
+// Only RA requires backlash based on your testing
 const int RA_BACKLASH_STEPS = 150; 
-const int DEC_BACKLASH_STEPS = 150;
+int lastRaDir = 0; 
 
-int lastRaDir = 0;
-int lastDecDir = 0;
-
-// ================= MOUNT MODEL =================
+// ================= MOUNT SCALING =================
 float raScale = 19200;      // steps per hour
 float decScale = 1280;      // steps per degree
 float raOffset = 0;
 float decOffset = 0;
 
-bool calibrated = false;
-
-// Tracking
+// Tracking state
 bool tracking = false;
-float siderealSpeed = 0;    // steps per second
+float siderealSpeed = 0;    
 
-// ================= STATE =================
+// Inactivity Power Management
 bool motorsEnabled = true;
 unsigned long lastMoveTime = 0;
 
-// ================= FUNCTIONS =================
+// ================= CORE FUNCTIONS =================
+
 void updateSiderealRate() {
-  siderealSpeed = raScale / 3600.0;   // steps per hour → steps per second
+  siderealSpeed = raScale / 3600.0;
 }
 
-void setRAScale(float newRAScale) {
-  raScale = newRAScale;
-  if (tracking) {
-    updateSiderealRate();
-    stepperRA.setSpeed(siderealSpeed);
-  }
-}
-
-// Backlash compensation – MUST be called before moveTo()
 void applyBacklash(AccelStepper &stepper, int &lastDir, long targetPos, int backlashAmount) {
   long currentPos = stepper.currentPosition();
   if (targetPos == currentPos) return;
 
   int newDir = (targetPos > currentPos) ? 1 : -1;
 
+  // If direction changed, "jump" the motor to engage the gears on the other side
   if (lastDir != 0 && newDir != lastDir) {
-    // Offset current position to "swallow" the gear slack
     stepper.setCurrentPosition(currentPos - (newDir * backlashAmount));
   }
   lastDir = newDir;
 }
 
+// ================= API HANDLERS =================
+
+void handleStatus() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  JsonDocument doc;
+  doc["ra_steps"] = (long)stepperRA.currentPosition();
+  doc["dec_steps"] = (long)stepperDEC.currentPosition();
+  doc["tracking"] = tracking;
+  doc["moving"] = (stepperRA.distanceToGo() != 0) || (stepperDEC.distanceToGo() != 0);
+  
+  String res;
+  serializeJson(doc, res);
+  server.send(200, "application/json", res);
+}
+
+void handleSlew() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"no body\"}");
+    return;
+  }
+  JsonDocument doc;
+  deserializeJson(doc, server.arg("plain"));
+
+  float lha = doc["lha"];
+  float dec = doc["dec"];
+
+  long targetRA  = (long)(raScale * lha + raOffset);
+  long targetDEC = (long)(decScale * dec + decOffset);
+
+  tracking = false; // Stop tracking during slew
+
+  // Apply Backlash to RA only
+  applyBacklash(stepperRA, lastRaDir, targetRA, RA_BACKLASH_STEPS);
+
+  stepperRA.moveTo(targetRA);
+  stepperDEC.moveTo(targetDEC);
+
+  server.send(200, "application/json", "{\"status\":\"slewing\"}");
+}
+
 // ================= SETUP =================
+
 void setup() {
   Serial.begin(115200);
 
   pinMode(RA_ENABLE_PIN, OUTPUT);
   pinMode(DEC_ENABLE_PIN, OUTPUT);
-  digitalWrite(RA_ENABLE_PIN, LOW);   // enable motors (active LOW)
+  digitalWrite(RA_ENABLE_PIN, LOW); // Active LOW
   digitalWrite(DEC_ENABLE_PIN, LOW);
 
   stepperRA.setMaxSpeed(5000);
@@ -85,139 +115,55 @@ void setup() {
   stepperDEC.setAcceleration(2000);
 
   WiFi.mode(WIFI_AP);
-  WiFi.setSleep(false);
   WiFi.softAP(ssid, password);
-  Serial.print("AP IP address: ");
-  Serial.println(WiFi.softAPIP());
 
-  // -------- CORS & OPTIONS handler ----------
+  // CORS Preflight
   server.onNotFound([]() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
     server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
-    if (server.method() == HTTP_OPTIONS) {
-      server.send(200);
-    } else {
-      server.send(404);
-    }
+    if (server.method() == HTTP_OPTIONS) server.send(200);
+    else server.send(404);
   });
 
-  // -------- STATUS (GET) --------
-  server.on("/status", HTTP_GET, []() {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    JsonDocument doc;
-    doc["ra_steps"] = stepperRA.currentPosition();
-    doc["dec_steps"] = stepperDEC.currentPosition();
-    doc["tracking"] = tracking;
-    doc["moving"] = (stepperRA.distanceToGo() != 0) || (stepperDEC.distanceToGo() != 0);
-    String res;
-    serializeJson(doc, res);
-    server.send(200, "application/json", res);
-  });
+  server.on("/status", HTTP_GET, handleStatus);
+  server.on("/slew", HTTP_POST, handleSlew);
 
-  // -------- SLEW (POST) --------
-  server.on("/slew", HTTP_POST, []() {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"no body\"}");
-      return;
-    }
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
-    if (error) {
-      server.send(400, "application/json", "{\"error\":\"bad json\"}");
-      return;
-    }
-    if (!doc["lha"].is<float>() || !doc["dec"].is<float>()) {
-      server.send(400, "application/json", "{\"error\":\"missing lha or dec\"}");
-      return;
-    }
-    float lha = doc["lha"];
-    float dec = doc["dec"];
-
-    long targetRA  = (long)(raScale * lha + raOffset);
-    long targetDEC = (long)(decScale * dec + decOffset);
-
-    tracking = false;
-
-    applyBacklash(stepperRA, lastRaDir, targetRA, RA_BACKLASH_STEPS);
-    applyBacklash(stepperDEC, lastDecDir, targetDEC, DEC_BACKLASH_STEPS);
-
-    stepperRA.moveTo(targetRA);
-    stepperDEC.moveTo(targetDEC);
-
-    server.send(200, "application/json", "{\"status\":\"slewing\"}");
-  });
-
-  // -------- TRACK (POST) --------
   server.on("/track", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
-    if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"no body\"}");
-      return;
-    }
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
-    if (error) {
-      server.send(400, "application/json", "{\"error\":\"bad json\"}");
-      return;
-    }
-    tracking = doc["on"] | false;   // boolean OR works (false = 0)
+    deserializeJson(doc, server.arg("plain"));
+    tracking = doc["on"] | false;
     if (tracking) {
       updateSiderealRate();
-      lastRaDir = 1;  // ensure RA motor is "biting" in tracking direction
+      lastRaDir = 1; // Engage gears in tracking direction
       stepperRA.setSpeed(siderealSpeed);
     }
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   });
 
-  // -------- MOVE RA RELATIVE (POST) --------
   server.on("/move_ra", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
-    if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"no body\"}");
-      return;
-    }
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
-    if (error || !doc["steps"].is<int>()) {
-      server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
-      return;
-    }
+    deserializeJson(doc, server.arg("plain"));
     int steps = doc["steps"];
-    long current = stepperRA.currentPosition();
-    long target = current + steps;
-
+    long target = stepperRA.currentPosition() + steps;
     applyBacklash(stepperRA, lastRaDir, target, RA_BACKLASH_STEPS);
     stepperRA.moveTo(target);
     tracking = false;
-    server.send(200, "application/json", "{\"status\":\"moving_ra\"}");
+    server.send(200, "application/json", "{\"status\":\"moving\"}");
   });
 
-  // -------- MOVE DEC RELATIVE (POST) --------
   server.on("/move_dec", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
-    if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"no body\"}");
-      return;
-    }
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
-    if (error || !doc["steps"].is<int>()) {
-      server.send(400, "application/json", "{\"error\":\"bad json or missing steps\"}");
-      return;
-    }
+    deserializeJson(doc, server.arg("plain"));
     int steps = doc["steps"];
-    long current = stepperDEC.currentPosition();
-    long target = current + steps;
-
-    applyBacklash(stepperDEC, lastDecDir, target, DEC_BACKLASH_STEPS);
-    stepperDEC.moveTo(target);          // single moveTo – fixed duplicate
+    stepperDEC.moveTo(stepperDEC.currentPosition() + steps);
     tracking = false;
-    server.send(200, "application/json", "{\"status\":\"moving_dec\"}");
+    server.send(200, "application/json", "{\"status\":\"moving\"}");
   });
 
-  // -------- STOP (POST) --------
   server.on("/stop", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     tracking = false;
@@ -226,7 +172,6 @@ void setup() {
     server.send(200, "application/json", "{\"status\":\"stopped\"}");
   });
 
-  // -------- HOME (POST) --------
   server.on("/home", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     tracking = false;
@@ -235,86 +180,59 @@ void setup() {
     server.send(200, "application/json", "{\"status\":\"homing\"}");
   });
 
-  // -------- SET STAR HOME (POST) --------
   server.on("/set_star_home", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
-    if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"no body\"}");
-      return;
-    }
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
-    if (error) {
-      server.send(400, "application/json", "{\"error\":\"bad json\"}");
-      return;
-    }
+    deserializeJson(doc, server.arg("plain"));
     float lha = doc["lha"];
     float dec = doc["dec"];
     long raSteps = doc["ra_steps"];
     long decSteps = doc["dec_steps"];
     raOffset = raSteps - (raScale * lha);
     decOffset = decSteps - (decScale * dec);
-    calibrated = true;
     server.send(200, "application/json", "{\"status\":\"home_set\"}");
   });
 
-  // -------- CALIBRATION (POST) --------
   server.on("/calibration", HTTP_POST, []() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
-    if (!server.hasArg("plain")) {
-      server.send(400, "application/json", "{\"error\":\"no body\"}");
-      return;
-    }
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
-    if (error) {
-      server.send(400, "application/json", "{\"error\":\"bad json\"}");
-      return;
+    deserializeJson(doc, server.arg("plain"));
+    if (doc["reset"]) {
+      raScale = 19200; decScale = 1280; raOffset = 0; decOffset = 0;
+    } else {
+      if (doc["raScale"]) raScale = doc["raScale"];
+      if (doc["decScale"]) decScale = doc["decScale"];
+      if (doc["raOffset"]) raOffset = doc["raOffset"];
+      if (doc["decOffset"]) decOffset = doc["decOffset"];
     }
-    if (doc["reset"].is<bool>() && doc["reset"]) {
-      setRAScale(19200);
-      decScale = 1280;
-      raOffset = 0;
-      decOffset = 0;
-      calibrated = false;
-      server.send(200, "application/json", "{\"status\":\"reset\"}");
-      return;
-    }
-    if (doc["raScale"].is<float>()) setRAScale(doc["raScale"]);
-    if (doc["raOffset"].is<float>()) raOffset = doc["raOffset"];
-    if (doc["decScale"].is<float>()) decScale = doc["decScale"];
-    if (doc["decOffset"].is<float>()) decOffset = doc["decOffset"];
-    calibrated = true;
     server.send(200, "application/json", "{\"status\":\"calibrated\"}");
   });
 
   server.begin();
 }
 
-// ================= LOOP =================
 void loop() {
   server.handleClient();
-  yield();
 
-  bool moving = false;
+  bool isMoving = false;
 
-  // RA movement (slew or tracking)
+  // RA Logic
   if (stepperRA.distanceToGo() != 0) {
     stepperRA.run();
-    moving = true;
+    isMoving = true;
   } else if (tracking) {
     stepperRA.runSpeed();
-    moving = true;
+    isMoving = true;
   }
 
-  // DEC movement (slew only)
+  // DEC Logic
   if (stepperDEC.distanceToGo() != 0) {
     stepperDEC.run();
-    moving = true;
+    isMoving = true;
   }
 
-  // Auto power-down after 10 seconds of inactivity
-  if (moving) {
+  // Power management
+  if (isMoving) {
     lastMoveTime = millis();
     if (!motorsEnabled) {
       digitalWrite(RA_ENABLE_PIN, LOW);

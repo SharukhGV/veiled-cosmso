@@ -13,7 +13,7 @@
 
 **Veiled Cosmos** is an open-source hardware + software project that transforms a standard manual German Equatorial Mount (EQ) into a precision, WiFi-controlled GoTo system.
 
-Built for heavier payloads (up to 20 lbs / 9 kg), this system uses high-torque NEMA 17 stepper motors and an ESP32 to enable automated celestial slewing, real-time sidereal tracking, and wireless control.
+Built for lighter payloads (tested on 114 mm 900 mm Focal Length Celestron Powerseeker Telescope on a Skyview Pro 8 EQ Mount), this system uses high-torque NEMA 17 stepper motors and an ESP32 to enable automated celestial slewing, real-time sidereal tracking, and wireless control.
 
 ## ✨ Features
 
@@ -64,12 +64,10 @@ Before uploading the firmware, install the following libraries using the **Ardui
 ### Step 2: Flash the ESP32
 
 1. Download and install the [Arduino IDE](https://www.arduino.cc/en/software)
-2. Go to **File > Preferences** and add this URL to "Additional Boards Manager URLs":
-
-3. Go to **Tools > Board > Boards Manager**, search for "ESP32", and install the package
-4. Select your board (e.g., DOIT ESP32 DEVKIT V1)
-5. Connect your ESP32 to your PC
-6. **The complete firmware code is found in the `esp32_code.ino` file.** Simply copy and paste its entire content into the Arduino IDE, then click **Upload**.
+2. Go to **Tools > Board > Boards Manager**, search for "ESP32", and install the package
+3. Select your board (e.g., DOIT ESP32 DEVKIT V1)
+4. Connect your ESP32 to your PC
+5. **The complete firmware code is found in the `esp32_code.ino` file.** Simply copy and paste its entire content into the Arduino IDE, then click **Upload**.
 
 ### Step 3: Launch the Web App
 
