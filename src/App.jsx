@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Observer, Body, Equator, SiderealTime } from 'astronomy-engine';
 import { BRIGHT_STARS } from './starCatalog';
 import mercuryImg from './assets/mercury.png';
@@ -23,7 +23,12 @@ import mizarImg from './assets/mizar.png';
 import albireoImg from './assets/albireo.png';
 import lagoonImg from './assets/lagoon.png';
 import corCaroliImg from './assets/corcaroli.png';
-import { useMemo } from 'react';
+import algiebaImg from './assets/algiebaimg.png';
+import gammaandromedaeImg from './assets/gammandromedae.png';
+import M5Img from './assets/M5.png';
+import M15 from './assets/M15.png';
+import M52 from './assets/M52.png';
+import M67 from './assets/M67.png';
 
 const MESSIER_DATA = [
   { "name": "M31", "common": "Andromeda Galaxy", "ra": 0.7123, "dec": 41.2687, img: andromedaImg },
@@ -95,6 +100,32 @@ const SUMMER_PICKS = [
   { name: "Cor Caroli", common: "Heart of Charles", ra: 12.9372, dec: 38.3175, img: corCaroliImg }
 ];
 
+const SPRING_PICKS = [
+  { id: Body.Moon, name: "Moon", img: moon, common: "High Contrast Detail" },
+  { id: Body.Mars, name: "Mars", img: marsImg, common: "The Red Planet" },
+  { id: Body.Jupiter, name: "Jupiter", img: jupiterImg, common: "King of Planets" },
+  { name: "M44", common: "Beehive Cluster", ra: 8.6667, dec: 19.6667, img: beehiveImg },
+  { name: "M3", common: "Bright Globular", ra: 13.70, dec: 28.38, img: m13Img },
+  { name: "Mizar & Alcor", common: "Famous Double Star", ra: 13.398, dec: 54.92, img: mizarImg },
+  { name: "Algieba", common: "Golden Double Star", ra: 10.33, dec: 19.84, img: algiebaImg },
+  { name: "M67", common: "Old Open Cluster", ra: 8.85, dec: 11.80, img: M67 },
+  { name: "M5", common: "Dense Globular", ra: 15.31, dec: 2.08, img: M5Img },
+  { name: "Cor Caroli", common: "Heart of Charles", ra: 12.937, dec: 38.317, img: corCaroliImg }
+];
+
+const AUTUMN_PICKS = [
+  { id: Body.Moon, name: "Moon", img: moon, common: "Earth's Neighbor" },
+  { id: Body.Jupiter, name: "Jupiter", img: jupiterImg, common: "Cloud Belts & Moons" },
+  { id: Body.Saturn, name: "Saturn", img: saturnImg, common: "The Rings" },
+  { id: Body.Venus, name: "Venus", img: venusImg, common: "Evening Star" },
+  { name: "M31", common: "Andromeda Core", ra: 0.7123, dec: 41.2687, img: andromedaImg },
+  { name: "Albireo", common: "Blue & Gold Double", ra: 19.51, dec: 27.96, img: albireoImg },
+  { name: "M15", common: "Pegasus Globular", ra: 21.50, dec: 12.17, img: M15 },
+  { name: "M45", common: "Pleiades", ra: 3.78, dec: 24.12, img: pleiadesImg },
+  { name: "Gamma Andromedae", common: "Triple Star System", ra: 2.06, dec: 42.32, img: gammaandromedaeImg },
+  { name: "M52", common: "Salt & Pepper Cluster", ra: 23.42, dec: 61.58, img: M52 }
+];
+
 export default function TelescopeApp() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('READY');
@@ -113,8 +144,9 @@ export default function TelescopeApp() {
   const [tracking, setTracking] = useState(false);
   const [mountPosition, setMountPosition] = useState({ ra: 0, dec: 0 });
   const [extraStarData, setExtraStarData] = useState([]);
-  const [isSummer, setIsSummer] = useState(true);
+  const [season, setSeason] = useState('spring'); // ← changed from isSummer
 
+  
   useEffect(() => {
     fetch('/starData.json')
       .then(res => res.json())
@@ -355,9 +387,22 @@ export default function TelescopeApp() {
     }
   };
 
+const cycleSeason = () => {
+    const order = ['spring', 'summer', 'autumn', 'winter'];
+    const currentIndex = order.indexOf(season);
+    const nextIndex = (currentIndex + 1) % order.length;
+    setSeason(order[nextIndex]);
+  };
+
   const displayList = useMemo(() => {
     if (kidsMode) {
-      return isSummer ? SUMMER_PICKS : WINTER_PICKS;
+      switch(season) {
+        case 'spring': return SPRING_PICKS;
+        case 'summer': return SUMMER_PICKS;
+        case 'autumn': return AUTUMN_PICKS;
+        case 'winter': return WINTER_PICKS;
+        default: return SPRING_PICKS;
+      }
     }
     if (!search.trim()) {
       return [...PLANETS, ...MESSIER_DATA];
@@ -370,17 +415,17 @@ export default function TelescopeApp() {
         (obj.common && obj.common.toLowerCase().includes(searchTerm))
       )
       .slice(0, 50);
-  }, [search, kidsMode, isSummer, extraStarData]);
+  }, [search, kidsMode, season, extraStarData]);
 
   const theme = {
-    bg: nightMode ? '#0a0a0a' : '#050505',
-    card: nightMode ? '#1a1a1a' : '#141414',
-    cardHover: nightMode ? '#2a2a2a' : '#202020',
-    text: nightMode ? '#ff4444' : '#ffffff',
-    textSecondary: nightMode ? '#ff8888' : '#a0a0a0',
-    accent: nightMode ? '#ff4444' : '#ff6666',
-    border: nightMode ? '#330000' : '#2a2a2a',
-    radius: '12px'
+    bg: '#050505',
+    card: '#0f0f0f',
+    cardHover: '#161616',
+    text: '#39ff14',
+    textSecondary: '#2db311',
+    accent: '#39ff14',
+    border: '#1a3312',
+    radius: '8px'
   };
 
   const sendCommand = (obj, action = 'goto') => {
@@ -445,16 +490,17 @@ export default function TelescopeApp() {
 
   return (
     <div style={{
-      ...ui.container,
+      ...styles.container,
       background: theme.bg,
       color: theme.text,
-      filter: nightMode ? 'sepia(100%) saturate(300%) hue-rotate(-50deg)' : 'none'
+      filter: nightMode ? 'sepia(100%) saturate(400%) hue-rotate(-50deg) brightness(0.4) contrast(1.2)' : 'none',
+      transition: 'filter 0.5s ease'
     }}>
-      <div style={ui.header}>
-        <h1 style={{...ui.title, color: theme.accent}}>🔭 VEILED COSMOS</h1>
+      <div style={styles.header}>
+        <h1 style={{...styles.title, color: theme.accent}}>🔭 VEILED COSMOS</h1>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{
-            ...ui.statusBox,
+            ...styles.statusBox,
             background: status === 'TRACKING' ? '#004400' : theme.accent,
             borderRadius: theme.radius
           }}>
@@ -465,12 +511,12 @@ export default function TelescopeApp() {
       </div>
 
       {showIntro && (
-        <div style={ui.modalOverlay}>
-          <div style={ui.modalBox}>
-            <h2 style={ui.modalTitle}>Welcome to Veiled Cosmos</h2>
-            <p style={ui.modalText}>This interface helps you move the ESP32 telescope mount to planets and deep sky objects using simple controls.</p>
-            <h3 style={ui.modalSubTitle}>Setup Instructions</h3>
-            <ol style={ui.modalList}>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <h2 style={styles.modalTitle}>Welcome to Veiled Cosmos</h2>
+            <p style={styles.modalText}>This interface helps you move the ESP32 telescope mount to planets and deep sky objects using simple controls.</p>
+            <h3 style={styles.modalSubTitle}>Setup Instructions</h3>
+            <ol style={styles.modalList}>
               <li><strong>Hardware Setup</strong>: Connect NEMA 17 motors to RA and DEC axes of your Orion StarBlast mount. Wire to ESP32 pins (RA: 12/14, DEC: 27/26). Power the ESP32 and motors.</li>
               <li><strong>Upload ESP32 Code</strong>: Flash the <code>esp32_code.ino</code> file to your ESP32 using Arduino IDE. Ensure WiFi AP "VeiledCosmos_Mount" is created.</li>
               <li><strong>Start the App</strong>: Run <code>npm run dev</code> in the project folder. Open the app in your browser.</li>
@@ -478,8 +524,8 @@ export default function TelescopeApp() {
               <li><strong>Calibrate</strong>: Level the mount, aim at Polaris, then use the calibration panel to set home and save two star references for accurate pointing.</li>
               <li><strong>Use the Interface</strong>: Click objects to slew, use stop/home, and enjoy stargazing!</li>
             </ol>
-            <h3 style={ui.modalSubTitle}>Interface Guide</h3>
-            <ul style={ui.modalList}>
+            <h3 style={styles.modalSubTitle}>Interface Guide</h3>
+            <ul style={styles.modalList}>
               <li><strong>Object Grid</strong>: click any planet or nebula to send the mount there.</li>
               <li><strong>Search</strong>: type a name to filter stars, galaxies, and nebulae.</li>
               <li><strong>Kids Mode</strong>: simpler cards and fun names for younger users.</li>
@@ -488,17 +534,17 @@ export default function TelescopeApp() {
               <li><strong>Home</strong>: returns the mount to the parking position.</li>
               <li><strong>Tracking</strong>: enable sidereal tracking to follow celestial objects as Earth rotates.</li>
             </ul>
-            <button style={ui.modalBtn} onClick={closeIntro}>Got it, continue</button>
+            <button style={styles.modalBtn} onClick={closeIntro}>Got it, continue</button>
           </div>
         </div>
       )}
 
       {showCalGuide && (
-        <div style={ui.modalOverlay}>
-          <div style={ui.modalBox}>
-            <h2 style={ui.modalTitle}>Calibration Guide</h2>
-            <p style={ui.modalText}>Follow these steps to calibrate your mount for accurate pointing. This uses a two-star alignment method.</p>
-            <ol style={ui.modalList}>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <h2 style={styles.modalTitle}>Calibration Guide</h2>
+            <p style={styles.modalText}>Follow these steps to calibrate your mount for accurate pointing. This uses a two-star alignment method.</p>
+            <ol style={styles.modalList}>
               <li><strong>Prepare the Mount</strong>: Level your Orion StarBlast mount on a stable surface. Aim the telescope roughly at Polaris (North Star) using the manual knobs.</li>
               <li><strong>Set Home Reference</strong>: In the app, select "Polaris" from the star dropdown. Manually align the telescope to Polaris. Click "Set selected star as home" to record this position as the mount's zero point.</li>
               <li><strong>Choose First Reference Star</strong>: Select a bright star (e.g., Vega) from the dropdown. Manually slew the mount to center that star in your eyepiece. Click "Save star reference" to record reference 1.</li>
@@ -506,27 +552,27 @@ export default function TelescopeApp() {
               <li><strong>Verify Calibration</strong>: The app will show computed RA/DEC scales. Test by clicking objects in the grid — the mount should now point accurately.</li>
               <li><strong>Reset if Needed</strong>: If calibration seems off, click "Reset calibration" and repeat steps 2-4.</li>
             </ol>
-            <p style={ui.modalText}>Tip: Use stars at least 45° apart for best results. Calibration improves pointing accuracy across the sky.</p>
-            <button style={ui.modalBtn} onClick={() => setShowCalGuide(false)}>Close Guide</button>
+            <p style={styles.modalText}>Tip: Use stars at least 45° apart for best results. Calibration improves pointing accuracy across the sky.</p>
+            <button style={styles.modalBtn} onClick={() => setShowCalGuide(false)}>Close Guide</button>
           </div>
         </div>
       )}
 
-      <div style={{...ui.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
-        <div style={ui.controls}>
+      <div style={{...styles.mainGrid, gridTemplateColumns: sidebarVisible ? '1fr 300px' : '1fr'}}>
+        <div style={styles.controls}>
           <input 
-            style={{...ui.search, background: theme.card, color: theme.text, borderRadius: theme.radius, borderColor: theme.border}} 
+            style={{...styles.search, background: theme.card, color: theme.text, borderRadius: theme.radius, borderColor: theme.border}} 
             placeholder="Search stars, nebulae, planets..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          <div style={ui.scrollGrid}>
+          <div style={styles.scrollGrid}>
             {displayList.map(obj => (
               <button 
                 key={`${obj.name}-${obj.ra || obj.id}`}
                 onClick={() => sendCommand(obj)}
                 style={{
-                  ...ui.cardButton,
+                  ...styles.cardButton,
                   background: theme.card,
                   borderColor: theme.border,
                   color: theme.text,
@@ -534,143 +580,154 @@ export default function TelescopeApp() {
                 }}
               >
                 {obj.img ? (
-                  <img src={obj.img} style={ui.objectImage} alt={obj.name} />
+                  <img src={obj.img} style={styles.objectImage} alt={obj.name} />
                 ) : (
-                  <span style={ui.fallbackIcon}>{obj.isStar ? '⭐' : '🌌'}</span>
+                  <span style={styles.fallbackIcon}>{obj.isStar ? '⭐' : '🌌'}</span>
                 )}
-                <div style={ui.cardContent}>
-                  <div style={ui.cardName}>{obj.name}</div>
-                  <div style={ui.cardCommon}>{obj.common || (obj.isStar ? 'Star' : 'Deep Sky Object')}</div>
+                <div style={styles.cardContent}>
+                  <div style={styles.cardName}>{obj.name}</div>
+                  <div style={styles.cardCommon}>{obj.common || (obj.isStar ? 'Star' : 'Deep Sky Object')}</div>
                 </div>
-                <div style={ui.cardAction}>SLEW 🔭</div>
+                <div style={styles.cardAction}>SLEW 🔭</div>
               </button>
             ))}
           </div>
         </div>
 
-        {sidebarVisible && <div style={ui.sidebar}>
+{sidebarVisible && (
+        <div style={styles.sidebar}>
           {kidsMode && (
-            <div style={{...ui.calibBox, background: theme.accent, marginBottom: '15px', borderRadius: theme.radius}}>
+            <div style={{...styles.calibBox, background: theme.accent, marginBottom: '15px', borderRadius: theme.radius}}>
               <h3 style={{margin: '0 0 10px 0', color: '#000'}}>📅 Season Select</h3>
               <button 
-                style={{...ui.actionBtn, background: '#fff', color: '#000', borderRadius: theme.radius}}
-                onClick={() => setIsSummer(!isSummer)}
+                style={{...styles.actionBtn, background: '#3a0ca3', color: '#fff', borderRadius: theme.radius}}
+                onClick={cycleSeason}
               >
-                <span style={ui.btnIcon}>{isSummer ? '☀️' : '❄️'}</span>
-                SWITCH TO {isSummer ? 'WINTER' : 'SUMMER'}
+                <span style={styles.btnIcon}>
+                  {season === 'spring' && '🌸'}
+                  {season === 'summer' && '☀️'}
+                  {season === 'autumn' && '🍂'}
+                  {season === 'winter' && '❄️'}
+                </span>
+                {season.toUpperCase()} OBJECTS
               </button>
               <p style={{fontSize: '0.8rem', color: '#000', marginTop: '5px', fontWeight: 'bold'}}>
-                Currently showing: {isSummer ? 'Summer Stars' : 'Winter Stars'}
+                {season === 'spring' && '🌸 Spring: Galaxies & Clusters'}
+                {season === 'summer' && '☀️ Summer: Nebulae & Star Clouds'}
+                {season === 'autumn' && '🍂 Autumn: Andromeda & Double Cluster'}
+                {season === 'winter' && '❄️ Winter: Orion & Pleiades'}
               </p>
             </div>
-          )}
+          
+    )}
 
-          <div style={ui.buttonGroup}>
+
+          <div style={styles.buttonGroup}>
             <button 
-              style={{...ui.actionBtn, background: kidsMode ? '#2196F3' : '#333', borderRadius: theme.radius}}
+              style={{...styles.actionBtn, background: kidsMode ? '#2196F3' : '#333', borderRadius: theme.radius}}
               onClick={() => setKidsMode(!kidsMode)}
             >
-              <span style={ui.btnIcon}>{kidsMode ? '🚀' : '🧒'}</span>
+              <span style={styles.btnIcon}>{kidsMode ? '🚀' : '🧒'}</span>
               {kidsMode ? 'ADVANCED MODE' : 'KIDS MODE'}
             </button>
             <button 
-              style={{...ui.actionBtn, background: nightMode ? '#7a1f1f' : '#333', borderRadius: theme.radius}}
+              style={{...styles.actionBtn, background: nightMode ? '#7a1f1f' : '#333', borderRadius: theme.radius}}
               onClick={() => setNightMode(!nightMode)}
             >
-              <span style={ui.btnIcon}>{nightMode ? '☀️' : '🌙'}</span>
+              <span style={styles.btnIcon}>{nightMode ? '☀️' : '🌙'}</span>
               {nightMode ? 'NORMAL VISION' : 'NIGHT VISION'}
             </button>
           </div>
 
           <button 
-            style={{...ui.stopBtn, borderRadius: theme.radius}}
+            style={{...styles.stopBtn, borderRadius: theme.radius}}
             onClick={() => sendCommand(null, 'stop')}
           >
-            <span style={ui.btnIcon}>🛑</span>
+            <span style={styles.btnIcon}>🛑</span>
             STOP MOUNT
           </button>
 
-          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
+          <div style={{...styles.calibBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
             <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>🕹️ Manual Fine Moves</h3>
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', 200)}>RA +200</button>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', -200)}>RA -200</button>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', 200)}>DEC +200</button>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', -200)}>DEC -200</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', 200)}>RA +200</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', -200)}>RA -200</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', 200)}>DEC +200</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', -200)}>DEC -200</button>
             </div>
             <div style={{display: 'flex', gap: '8px', marginTop: '8px'}}>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', 20)}>RA +20</button>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', -20)}>RA -20</button>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', 20)}>DEC +20</button>
-              <button style={{...ui.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', -20)}>DEC -20</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', 20)}>RA +20</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('ra', -20)}>RA -20</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', 20)}>DEC +20</button>
+              <button style={{...styles.smallBtn, borderRadius: theme.radius}} onClick={() => moveRelative('dec', -20)}>DEC -20</button>
             </div>
           </div>
 
           <button 
-            style={{...ui.actionBtn, background: '#333', borderRadius: theme.radius}}
+            style={{...styles.actionBtn, background: '#333', borderRadius: theme.radius}}
             onClick={() => sendCommand(null, 'home')}
           >
-            <span style={ui.btnIcon}>🏠</span>
+            <span style={styles.btnIcon}>🏠</span>
             HOME MOUNT
           </button>
 
           <button 
-            style={{...ui.actionBtn, background: tracking ? '#ffaa00' : '#333', borderRadius: theme.radius}}
+            style={{...styles.actionBtn, background: tracking ? '#ffaa00' : '#333', borderRadius: theme.radius}}
             onClick={toggleTracking}
           >
-            <span style={ui.btnIcon}>{tracking ? '⏸️' : '▶️'}</span>
+            <span style={styles.btnIcon}>{tracking ? '⏸️' : '▶️'}</span>
             {tracking ? 'DISABLE TRACKING' : 'ENABLE TRACKING'}
           </button>
 
-          <div style={{...ui.calibBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
+          <div style={{...styles.calibBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
             <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>🧭 Star Calibration</h3>
-            <p style={ui.calibText}>Align the mount to a bright star, choose it below, then save two different star references for better accuracy.</p>
+            <p style={styles.calibText}>Align the mount to a bright star, choose it below, then save two different star references for better accuracy.</p>
             <select
               value={selectedCalStar}
               onChange={e => setSelectedCalStar(e.target.value)}
-              style={{...ui.select, background: theme.card, color: theme.text, borderColor: theme.border, borderRadius: theme.radius}}
+              style={{...styles.select, background: theme.card, color: theme.text, borderColor: theme.border, borderRadius: theme.radius}}
             >
               {BRIGHT_STARS.map(star => (
                 <option key={star.name} value={star.name}>{star.name}</option>
               ))}
             </select>
-            <button style={{...ui.calibBtn, borderRadius: theme.radius}} onClick={saveCalibrationReference}>Save star reference</button>
-            <button style={{...ui.calibBtnSecondary, borderRadius: theme.radius}} onClick={setStarAsHome}>Set selected star as home</button>
-            <button style={{...ui.calibBtnSecondary, borderRadius: theme.radius}} onClick={() => setShowCalGuide(true)}>Show Calibration Guide</button>
-            <div style={ui.calibRow}>Reference 1: {starRef1 ? starRef1.name : 'None'}</div>
-            <div style={ui.calibRow}>Reference 2: {starRef2 ? starRef2.name : 'None'}</div>
-            <button style={{...ui.calibBtnSecondary, borderRadius: theme.radius}} onClick={resetCalibration}>Reset calibration</button>
+            <button style={{...styles.calibBtn, borderRadius: theme.radius}} onClick={saveCalibrationReference}>Save star reference</button>
+            <button style={{...styles.calibBtnSecondary, borderRadius: theme.radius}} onClick={setStarAsHome}>Set selected star as home</button>
+            <button style={{...styles.calibBtnSecondary, borderRadius: theme.radius}} onClick={() => setShowCalGuide(true)}>Show Calibration Guide</button>
+            <div style={styles.calibRow}>Reference 1: {starRef1 ? starRef1.name : 'None'}</div>
+            <div style={styles.calibRow}>Reference 2: {starRef2 ? starRef2.name : 'None'}</div>
+            <button style={{...styles.calibBtnSecondary, borderRadius: theme.radius}} onClick={resetCalibration}>Reset calibration</button>
             {calibrationData && (
-              <div style={ui.calibRow}>
+              <div style={styles.calibRow}>
                 RA scale: {calibrationData.raScale.toFixed(1)}, DEC scale: {calibrationData.decScale.toFixed(1)}
               </div>
             )}
-            <div style={ui.calibMessage}>{calibrationMessage}</div>
+            <div style={styles.calibMessage}>{calibrationMessage}</div>
           </div>
 
-          <div style={{...ui.infoBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
+          <div style={{...styles.infoBox, background: theme.card, borderColor: theme.border, borderRadius: theme.radius}}>
             <h3 style={{margin: '0 0 10px 0', color: theme.accent}}>⚙️ Calibration</h3>
-            <ol style={ui.infoList}>
+            <ol style={styles.infoList}>
               <li>Level Mount</li>
               <li>Aim at Polaris</li>
               <li>Restart ESP32</li>
             </ol>
-            <div style={ui.infoFooter}>
+            <div style={styles.infoFooter}>
               <span>📍 Current Location</span>
               <span>{location.lat !== null ? location.lat.toFixed(2) : "?"}°, {location.lon !== null ? location.lon.toFixed(2) : "?"}°</span>
             </div>
           </div>
-        </div>}
+        </div>)}
       </div>
     </div>
   );
 }
 
-const ui = {
+const styles = {
   container: { 
     minHeight: '100vh', 
     padding: 'clamp(16px, 4vw, 32px)', 
-    fontFamily: "'Inter', system-ui, -apple-system, sans-serif", 
+    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
     transition: 'all 0.3s ease',
     display: 'flex',
     flexDirection: 'column'
@@ -680,71 +737,88 @@ const ui = {
     justifyContent: 'space-between', 
     alignItems: 'center', 
     marginBottom: 'clamp(24px, 6vw, 40px)',
+    borderBottom: '1px solid #1a3312',
+    paddingBottom: '16px',
     flexWrap: 'wrap',
-    gap: '16px'
+    gap: '12px'
   },
   title: { 
     fontSize: 'clamp(1.5rem, 5vw, 2.2rem)', 
-    letterSpacing: '2px', 
+    letterSpacing: '4px', 
     margin: 0,
-    fontWeight: 700
+    fontWeight: 800,
+    textTransform: 'uppercase'
   },
   statusBox: { 
-    color: '#fff', 
-    padding: '8px 16px', 
+    color: '#000', 
+    background: '#39ff14',
+    padding: '4px 12px', 
     fontWeight: 'bold',
-    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)'
+    fontSize: '0.8rem',
+    textTransform: 'uppercase'
   },
-  mainGrid: { 
-    display: 'grid', 
-    gap: 'clamp(16px, 4vw, 24px)', 
-    flex: 1
+  mainGrid: {
+    display: 'grid',
+    gap: '24px',
+    transition: 'all 0.3s ease'
   },
-  controls: { 
-    display: 'flex', 
-    flexDirection: 'column', 
-    overflow: 'hidden',
-    minWidth: 0,
-    gap: '20px'
+  controls: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    minWidth: 0
   },
   search: { 
     width: '100%', 
     padding: '12px 16px', 
-    border: '1px solid',
-    fontSize: 'clamp(0.9rem, 3vw, 1rem)',
-    outline: 'none'
+    background: '#0f0f0f',
+    border: '1px solid #1a3312',
+    color: '#39ff14',
+    fontSize: '1rem',
+    outline: 'none',
+    fontFamily: 'inherit',
+    transition: 'all 0.2s ease'
   },
-  scrollGrid: { 
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
-    gap: '12px', 
+  scrollGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '16px',
+    maxHeight: 'calc(100vh - 180px)',
     overflowY: 'auto',
-    maxHeight: 'calc(100vh - 200px)',
-    padding: '4px'
+    paddingRight: '8px'
   },
   cardButton: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
     padding: '12px',
-    border: '1px solid',
+    background: '#0f0f0f',
+    border: '1px solid #1a3312',
     cursor: 'pointer',
     textAlign: 'left',
-    transition: 'transform 0.1s ease',
-    fontFamily: 'inherit'
+    transition: 'all 0.2s ease',
+    color: '#39ff14'
   },
   objectImage: {
     width: '48px',
     height: '48px',
-    objectFit: 'contain',
-    borderRadius: '50%',
-    flexShrink: 0
+    objectFit: 'cover',
+    borderRadius: '4px',
+    border: '1px solid #1a3312',
+    flexShrink: 0,
+    background: '#000'
   },
   fallbackIcon: {
-    fontSize: '2rem',
+    fontSize: '1.5rem',
     width: '48px',
-    textAlign: 'center',
-    flexShrink: 0
+    height: '48px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    background: '#0a0a0a',
+    borderRadius: '4px',
+    border: '1px solid #1a3312'
   },
   cardContent: {
     flex: 1,
@@ -753,63 +827,66 @@ const ui = {
   cardName: {
     fontWeight: 'bold',
     fontSize: '1rem',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
+    marginBottom: '4px'
   },
   cardCommon: {
     fontSize: '0.75rem',
-    opacity: 0.8,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
+    opacity: 0.7
   },
   cardAction: {
-    fontSize: '0.8rem',
+    fontSize: '0.7rem',
     fontWeight: 'bold',
-    background: '#3b82f6',
-    color: 'white',
-    padding: '6px 10px',
-    borderRadius: '20px',
+    border: '1px solid #39ff14',
+    color: '#39ff14',
+    padding: '4px 8px',
+    textTransform: 'uppercase',
     whiteSpace: 'nowrap'
   },
-  sidebar: { 
-    display: 'flex', 
-    flexDirection: 'column', 
-    gap: 'clamp(12px, 3vw, 16px)' 
+  sidebar: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    maxHeight: 'calc(100vh - 120px)',
+    overflowY: 'auto',
+    paddingLeft: '8px'
   },
   buttonGroup: {
     display: 'flex',
     gap: '12px',
-    flexDirection: 'column'
+    flexWrap: 'wrap'
   },
-  actionBtn: { 
-    padding: 'clamp(12px, 3vw, 15px)', 
-    border: 'none', 
-    color: '#fff', 
-    fontWeight: 'bold', 
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)'
-  },
-  stopBtn: {
-    padding: 'clamp(12px, 3vw, 15px)',
-    border: '2px solid #ff4444',
-    background: '#1a0000',
-    color: '#ff4444',
+  actionBtn: {
+    flex: 1,
+    padding: '12px',
+    border: 'none',
+    background: '#333',
+    color: '#fff',
     fontWeight: 'bold',
     cursor: 'pointer',
+    textTransform: 'uppercase',
+    fontSize: '0.8rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
-    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)'
+    gap: '8px'
+  },
+  stopBtn: {
+    width: '100%',
+    padding: '15px',
+    border: '2px solid #ff0000',
+    background: '#1a0000',
+    color: '#ff0000',
+    fontWeight: '900',
+    cursor: 'pointer',
+    textTransform: 'uppercase',
+    letterSpacing: '2px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px'
   },
   btnIcon: {
-    fontSize: '1.1rem'
+    fontSize: '1.1rem',
   },
   smallBtn: {
     padding: '8px 12px',
@@ -818,27 +895,8 @@ const ui = {
     color: '#fff',
     fontWeight: 'bold',
     cursor: 'pointer',
-    fontSize: '0.8rem'
-  },
-  infoBox: { 
-    padding: 'clamp(16px, 4vw, 20px)', 
-    border: '1px solid',
-    marginTop: 'auto'
-  },
-  infoList: {
-    margin: 0,
-    paddingLeft: '20px',
-    fontSize: 'clamp(0.8rem, 2.5vw, 0.85rem)',
-    lineHeight: '1.6'
-  },
-  infoFooter: {
-    marginTop: '12px',
-    paddingTop: '12px',
-    borderTop: '1px solid rgba(255,255,255,0.1)',
-    fontSize: '0.75rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    opacity: 0.7
+    fontSize: '0.8rem',
+    transition: 'all 0.2s ease'
   },
   calibBox: {
     padding: '16px',
@@ -858,7 +916,8 @@ const ui = {
     padding: '10px 12px',
     border: '1px solid',
     fontSize: '0.95rem',
-    outline: 'none'
+    outline: 'none',
+    fontFamily: 'inherit'
   },
   calibBtn: {
     width: '100%',
@@ -888,49 +947,70 @@ const ui = {
     fontSize: '0.9rem',
     color: '#ffcc66'
   },
+  infoBox: { 
+    padding: 'clamp(16px, 4vw, 20px)', 
+    border: '1px solid',
+    marginTop: 'auto'
+  },
+  infoList: {
+    margin: 0,
+    paddingLeft: '20px',
+    fontSize: 'clamp(0.8rem, 2.5vw, 0.85rem)',
+    lineHeight: '1.6'
+  },
+  infoFooter: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid rgba(255,255,255,0.1)',
+    fontSize: '0.75rem',
+    display: 'flex',
+    justifyContent: 'space-between',
+    opacity: 0.7
+  },
   modalOverlay: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 'clamp(10px, 5vw, 20px)',
-    zIndex: 999
+    zIndex: 999,
+    backdropFilter: 'blur(4px)'
   },
   modalBox: {
     width: '100%',
-    maxWidth: 'min(520px, 90vw)',
-    background: '#111',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '20px',
-    padding: 'clamp(16px, 4vw, 28px)',
-    boxShadow: '0 22px 60px rgba(0,0,0,0.45)',
-    maxHeight: '80vh',
+    maxWidth: 'min(560px, 90vw)',
+    background: '#0f0f0f',
+    border: '1px solid #1a3312',
+    borderRadius: '12px',
+    padding: 'clamp(20px, 5vw, 32px)',
+    boxShadow: '0 25px 40px rgba(0,0,0,0.6)',
+    maxHeight: '85vh',
     overflowY: 'auto'
   },
   modalTitle: {
-    margin: 0,
-    fontSize: '1.6rem',
-    marginBottom: '12px',
-    color: '#ffcc66'
+    margin: '0 0 12px 0',
+    fontSize: 'clamp(1.4rem, 5vw, 1.8rem)',
+    color: '#39ff14'
   },
   modalSubTitle: {
     margin: '20px 0 10px 0',
-    fontSize: '1.3rem',
-    color: '#ffcc66'
+    fontSize: 'clamp(1.1rem, 4vw, 1.3rem)',
+    color: '#39ff14'
   },
   modalText: {
-    fontSize: '1rem',
-    lineHeight: '1.7',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
     opacity: 0.9,
     marginBottom: '16px'
   },
   modalList: {
     paddingLeft: '20px',
     marginBottom: '20px',
-    lineHeight: '1.8',
-    color: '#ddd'
+    lineHeight: '1.7',
+    color: '#ddd',
+    fontSize: '0.9rem'
   },
   modalBtn: {
     display: 'inline-flex',
@@ -938,25 +1018,46 @@ const ui = {
     justifyContent: 'center',
     width: '100%',
     padding: '14px',
-    borderRadius: '14px',
-    background: '#ff6666',
-    color: '#fff',
+    borderRadius: '8px',
+    background: '#39ff14',
+    color: '#000',
     border: 'none',
     fontWeight: '700',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '1rem'
   }
 };
 
-// Add global animation for status dot (if needed elsewhere, but we removed the dot)
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  button:hover {
-    opacity: 0.9;
-    transform: scale(0.98);
-  }
-`;
-document.head.appendChild(styleSheet);
+// Global hover effects
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.textContent = `
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      transition: all 0.2s ease;
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+    input:focus {
+      border-color: #39ff14 !important;
+      box-shadow: 0 0 0 2px rgba(57,255,20,0.2);
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0a0a0a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1a3312;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2db311;
+    }
+  `;
+  document.head.appendChild(styleSheet);
+}
